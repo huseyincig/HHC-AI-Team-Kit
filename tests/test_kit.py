@@ -857,3 +857,8 @@ def test_model_advisor_never_invents_missing_cost(tmp_path):
     assert r.returncode==0
     row=json.loads(r.stdout)['roles']['manager'][0]
     assert row['cost_input'] is None and row['cost_output'] is None
+
+
+def test_remote_install_help_includes_model_metadata_file():
+    r=run(KIT/'scripts/remote_install.py','--help')
+    assert '--model-metadata-file' in r.stdout

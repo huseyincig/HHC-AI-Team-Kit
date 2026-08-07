@@ -11,6 +11,7 @@ def main()->int:
     ap.add_argument('--shared-model'); ap.add_argument('--model',action='append',default=[])
     ap.add_argument('--scout',choices=['enabled','disabled']); ap.add_argument('--scout-model')
     ap.add_argument('--playwright',choices=['enabled','disabled']); ap.add_argument('--validate-model-capabilities',action='store_true')
+    ap.add_argument('--model-metadata-file',type=Path,help='Test/offline doğrulama için models.dev api.json uyumlu metadata dosyası')
     args=ap.parse_args()
     repo=args.repo.strip()
     if not repo or repo.startswith('-'): print('HHC-REMOTE-001: Geçersiz kod deposu adresi.',file=sys.stderr); return 2
@@ -33,5 +34,6 @@ def main()->int:
     if args.scout_model:cmd += ['--scout-model',args.scout_model]
     if args.playwright:cmd += ['--playwright',args.playwright]
     if args.validate_model_capabilities:cmd += ['--validate-model-capabilities']
+    if args.model_metadata_file:cmd.extend(['--model-metadata-file',str(args.model_metadata_file)])
     return subprocess.call(cmd)
 if __name__=='__main__': raise SystemExit(main())
