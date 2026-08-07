@@ -46,7 +46,20 @@ Yönetici tipini sor:
 
 Özel profilde en az bir uzman rol olmalıdır. Hazır profilde rol kadrosu profilden gelir.
 
-## 3. Bu proje için kullanılabilir modelleri keşfet
+## 3. Scout — proje bazında opt-in
+
+Çalışma biçiminden sonra kullanıcıya şu soruyu sor:
+
+**Bu projede harici dokümantasyon, dependency ve upstream kaynak araştırması için OpenCode Scout kullanmak istiyor musunuz?**
+
+Kısa açıklama: Scout yalnız harici araştırma içindir; yerel repository araştırmaları `repository-explorer` ile devam eder.
+
+- **Hayır** (varsayılan): Scout HHC tarafından çağrılmaz ve Scout modeli sorulmaz.
+- **Evet**: Scout etkinleştirilir ve model keşfinden sonra Scout / Dış Araştırma için ayrıca model seçilir.
+
+Preset Scout'u otomatik açmaz. Kullanıcı açıkça Evet demeden enable etme.
+
+## 4. Bu proje için kullanılabilir modelleri keşfet
 
 Model adımından hemen önce bir kez:
 
@@ -66,10 +79,10 @@ Model listesi boşsa kendi kendine tekrar etme. Kullanıcı açıkça isterse bi
 
 Liste uzunsa önce sağlayıcıyı, sonra modeli seçtir. Model kimliği uydurma.
 
-## 4. Model ataması
+## 5. Model ataması
 
 ### Tek Ana Ajan
-Yalnız **bir model** seçtir. Seçilen modeli Çalışan Yönetici ve profildeki bütün kurulu uzmanlara uygula. Backend'de `--shared-model provider/model` kullan. Bu çalışma biçiminde model seçimi bu tek soruyla tamamlanır.
+Yalnız **bir model** seçtir. Seçilen modeli Çalışan Yönetici ve profildeki bütün kurulu uzmanlara uygula. Backend'de `--shared-model provider/model` kullan. Bu model yalnız kurulu HHC rollerine uygulanır. Scout = Evet ise ayrıca **Scout / Dış Araştırma** modeli seçtir; Scout manager/shared modeli sessizce devralmasın.
 
 ### Çoklu Ajan Ekibi — zorunlu rol bazlı akış
 Kurulu ekip listesini kesinleştir ve **her rol için ayrı model cevabı topla**. Model adımının tamamlanma koşulu, kurulu rollerin tamamının bir `provider/model` değerine sahip olmasıdır.
@@ -94,7 +107,9 @@ OpenCode `question` aracı tek çağrıda birden çok ayrı soru destekliyorsa r
 
 Bu örnek yalnız sonuç biçimini gösterir; model kimliği uydurma.
 
-## 5. Son onay
+Scout = Evet ise kurulu rollerden bağımsız olarak ayrıca **Scout / Dış Araştırma** için bir `provider/model` seçimi al. Bu seçim başka role otomatik kopyalanmaz ve pahalı manager modeline sessiz fallback yapılmaz.
+
+## 6. Son onay
 
 Dosya yazmadan önce tek özet göster:
 - profil
@@ -102,6 +117,7 @@ Dosya yazmadan önce tek özet göster:
 - çalışma biçimi
 - Tek Ana Ajan ise Ana Ajan: Çalışan Yönetici + seçilen tek model
 - Çoklu Ajan ise yönetici tipi + Türkçe rol → model dağılımı
+- Scout: Kapalı veya Açık + seçilen Scout modeli
 - hedef proje
 
 `question` ile **Kur / Ayarları değiştir / İptal** seçeneklerini sun. Kur onayı olmadan backend'i çağırma.
@@ -109,12 +125,12 @@ Dosya yazmadan önce tek özet göster:
 ## Backend
 
 Tek Ana Ajan:
-`{{PYTHON}} "{{KIT_ROOT}}/scripts/install.py" --project-path . --team-mode single --preset <profil> [--roles <yalnız-custom-uzmanlar>] --shared-model provider/model`
+`{{PYTHON}} "{{KIT_ROOT}}/scripts/install.py" --project-path . --team-mode single --preset <profil> [--roles <yalnız-custom-uzmanlar>] --shared-model provider/model --scout <enabled|disabled> [--scout-model provider/model]`
 
 Hazır Çoklu Ajan profili:
-`{{PYTHON}} "{{KIT_ROOT}}/scripts/install.py" --project-path . --team-mode multi --preset <profil> --manager-mode <mod> --model role=provider/model ...`
+`{{PYTHON}} "{{KIT_ROOT}}/scripts/install.py" --project-path . --team-mode multi --preset <profil> --manager-mode <mod> --model role=provider/model ... --scout <enabled|disabled> [--scout-model provider/model]`
 
 Özel Çoklu Ajan profili:
-`{{PYTHON}} "{{KIT_ROOT}}/scripts/install.py" --project-path . --team-mode multi --preset custom --manager-mode <mod> --roles coder,qa-reviewer,... --model role=provider/model ...`
+`{{PYTHON}} "{{KIT_ROOT}}/scripts/install.py" --project-path . --team-mode multi --preset custom --manager-mode <mod> --roles coder,qa-reviewer,... --model role=provider/model ... --scout <enabled|disabled> [--scout-model provider/model]`
 
-Kurulum sonunda JSON çıktısından profil, çalışma biçimi, primary ajan, roller, model dağılımı, yazılan/korunan dosyalar ve `config` sonucunu kısa raporla. `config.action` `preserved-existing-config` ise mevcut `opencode.jsonc` dosyasının korunduğunu ve HHC'nin bu dosyadaki `default_agent`, `subagent_depth` veya `compaction` değerlerini değiştirmediğini açıkça belirt.
+Kurulum sonunda JSON çıktısından profil, çalışma biçimi, primary ajan, roller, model dağılımı, Scout açık/kapalı + Scout modeli, yazılan/korunan dosyalar ve `config` sonucunu kısa raporla. `config.action` `preserved-existing-config` ise mevcut `opencode.jsonc` dosyasının korunduğunu ve HHC'nin bu dosyadaki `default_agent`, `subagent_depth` veya `compaction` değerlerini değiştirmediğini açıkça belirt.

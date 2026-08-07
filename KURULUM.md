@@ -27,14 +27,18 @@ Yalnız iki seçenek vardır:
 
 Tam bağımsız/alt ajanları kapatan üçüncü bir solo seçenek yoktur.
 
-### Adım 3 — Modeller
+### Adım 3 — Scout
+
+Kurulumda **OpenCode Scout kullanılsın mı?** sorulur. Varsayılan **Hayır**'dır. Scout yalnız harici dokümantasyon, dependency ve upstream kaynak araştırması içindir; local repository araştırmaları `repository-explorer` ile yapılır. Scout = Evet ise model adımında Scout için ayrıca bağımsız model seçilir.
+
+### Adım 4 — Modeller
 
 `scripts/model_discovery.py --project-path <proje>` Windows OpenCode Desktop state'i bulunursa önce `%APPDATA%\ai.opencode.desktop\opencode.global.dat` içindeki `model.user[]` kayıtlarını okur ve yalnız `visibility == "show"` olan `providerID/modelID` çiftlerini gösterir. Bu dosya OpenCode'un public/stable API'si olmadığı için salt-okunur **BEST-EFFORT** kaynak kabul edilir. Desktop state yoksa/boşsa resmî `opencode models` komutuna geçilir. CLI başarısızsa yerel cache yine **UNDOCUMENTED / BEST-EFFORT** fallback'tir; cache'de bulunmak tek başına kullanılabilirlik kanıtı değildir ve yalnız config veya resmî auth görünümüyle aktifliği doğrulanabilen provider'lar kullanılır.
 
 Kullanıcı isterse bir kez `opencode models --refresh` denenebilir; otomatik çalışmaz.
 
-- **Tek Ana Ajan:** bir model seçilir, bütün kurulu HHC rolleri aynı modeli kullanır.
-- **Çoklu Ajan:** doğrudan her kurulu role model seçilir.
+- **Tek Ana Ajan:** bir model seçilir, bütün kurulu HHC rolleri aynı modeli kullanır. Scout açıksa bu ortak model Scout'a otomatik uygulanmaz; Scout modeli ayrıca seçilir.
+- **Çoklu Ajan:** doğrudan her kurulu role model seçilir. Scout açıksa ayrıca Scout / Dış Araştırma modeli seçilir.
 
 Ayrı `model politikası`, `OpenCode'u devral`, ekip varsayılan modeli veya “hangi roller farklı olsun?” adımı yoktur.
 
@@ -54,11 +58,11 @@ Uzman gerçekten gerekli ve mevcut ekip güvenilir sonuç üretemiyorsa `/hhc-re
 /hhc-reconfigure
 ```
 
-Yeni kurulumla aynı sıra kullanılır: Profil → yalnız Custom ise roller → Tek Ana/Çoklu → gerekirse yönetici → modeller. Eski rc.16 solo state'i yeniden yapılandırılırken HHC-owned dosyalar güvenli biçimde yeni yapıya taşınır.
+Yeni kurulumla aynı sıra kullanılır: Profil → yalnız Custom ise roller → Tek Ana/Çoklu → gerekirse yönetici → Scout Evet/Hayır → modeller. Scout durumu ve modeli sonradan değiştirilebilir. Eski rc.16 solo state'i yeniden yapılandırılırken HHC-owned dosyalar güvenli biçimde yeni yapıya taşınır.
 
 ## 5. Mevcut `opencode.jsonc`
 
-Mevcut config sessizce ezilmez. Config yoksa HHC `default_agent`, `subagent_depth: 1` ve `compaction.auto/prune` içeren küçük config oluşturur; `reserved` eklemez.
+Mevcut kök config sessizce ezilmez. Scout açıksa HHC `.opencode/opencode.jsonc` içinde yalnız native `scout` model override'ını yönetir; kullanıcıya ait aynı dosya varsa ezmek yerine güvenli hata verir. Scout kapatılınca yalnız HHC-owned Scout override kaldırılır. Config yoksa HHC `default_agent`, `subagent_depth: 1` ve `compaction.auto/prune` içeren küçük config oluşturur; `reserved` eklemez.
 
 ## 6. Windows, Desktop ve WSL
 

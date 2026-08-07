@@ -302,7 +302,7 @@ def _fake_opencode(bin_dir: Path, body: str):
         exe.write_text(f'@"{sys.executable}" "%~dp0_opencode_stub.py" %*\r\n', encoding='utf-8')
     else:
         exe = bin_dir / 'opencode'
-        exe.write_text('#!/usr/bin/env python3\n' + body, encoding='utf-8')
+        exe.write_text(f'#!{sys.executable}\n' + body, encoding='utf-8')
         exe.chmod(0o755)
     return exe
 
@@ -612,3 +612,134 @@ def test_hands_on_rejects_manager_role_model_after_rc16_compat_removal(tmp_path)
     p=tmp_path/'app'
     r=run(KIT/'scripts/install.py','--project-path',p,'--team-mode','multi','--manager-mode','hands_on','--preset','minimal','--model','manager=provider/x')
     assert r.returncode!=0, r.stderr
+
+
+def test_native_scout_routing_is_explicit_and_readonly_external_only(tmp_path):
+    for role in ('manager','working-manager'):
+        text=(KIT/f'roles/{role}.md').read_text(encoding='utf-8')
+        assert 'scout: allow' in text
+        assert 'Harici dokümantasyon' in text and 'upstream implementasyon' in text
+        assert '`repository-explorer` alanında tut' in text
+        assert 'bugünün verileriyle, gerçek ve güncel kaynaklara dayanarak' in text
+        assert 'resmî/birincil kaynağı öncelemesini' in text
+        assert 'doğrulanan gerçek + kaynak + sürüm/tarih + görev etkisi' in text
+    p=tmp_path/'app'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal')
+    assert r.returncode==0, r.stderr
+    installed=(p/'.opencode/agents/working-manager.md').read_text(encoding='utf-8')
+    assert 'scout: deny' in installed  # opt-in: varsayılan kapalı
+
+
+def test_background_parallelism_is_capability_based_and_non_polling():
+    for role in ('manager','working-manager'):
+        text=(KIT/f'roles/{role}.md').read_text(encoding='utf-8')
+        assert 'Task aracı `background` seçeneğini gerçekten sunuyorsa' in text
+        assert 'seçenek yoksa normal foreground akışını kullan' in text
+        assert 'Background işi poll etme' in text
+        assert 'aynı dosya/konuda çakışan iş başlatma' in text
+        assert 'Bağımlı işler ve aynı dosyayı değiştiren işler sıralı kalır' in text
+
+
+def test_command_context_isolation_is_only_on_heavy_review():
+    review=(KIT/'commands/team-review.md').read_text(encoding='utf-8')
+    status=(KIT/'commands/team-status.md').read_text(encoding='utf-8')
+    assert 'agent: qa-reviewer' in review
+    assert 'subtask: true' in review
+    assert 'subtask: true' not in status
+
+
+def test_scout_remains_native_but_has_opt_in_model_surface():
+    assert not (KIT/'roles/scout.md').exists()
+    assert not (KIT/'skills/scout').exists()
+    install=(KIT/'scripts/install.py').read_text(encoding='utf-8')
+    assert "PRIMARY_ROLES={'manager','working-manager','solo-agent'}" in install
+    assert '--scout-model' in install and "choices=['enabled','disabled']" in install
+
+
+def test_scout_disabled_by_default_has_no_override_and_denies_task(tmp_path):
+    p=tmp_path/'app'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal')
+    assert r.returncode==0, r.stderr
+    assert not (p/'.opencode/opencode.jsonc').exists()
+    manager=(p/'.opencode/agents/working-manager.md').read_text(encoding='utf-8')
+    assert 'scout: deny' in manager and 'scout: allow' not in manager
+    state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
+    assert state['scout_enabled'] is False and state['scout_model'] is None
+
+
+def test_scout_enabled_writes_independent_native_model_override(tmp_path):
+    p=tmp_path/'app'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal',
+          '--model','working-manager=provider/expensive','--model','coder=provider/coder','--model','qa-reviewer=provider/qa',
+          '--scout','enabled','--scout-model','provider/cheap-research')
+    assert r.returncode==0, r.stderr
+    cfg=json.loads((p/'.opencode/opencode.jsonc').read_text(encoding='utf-8'))
+    assert cfg['agent']['scout']['model']=='provider/cheap-research'
+    assert cfg['agent']['scout']['model']!='provider/expensive'
+    manager=(p/'.opencode/agents/working-manager.md').read_text(encoding='utf-8')
+    assert 'model: provider/expensive' in manager and 'scout: allow' in manager
+    state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
+    assert state['scout_enabled'] is True and state['scout_model']=='provider/cheap-research'
+
+
+def test_scout_enabled_requires_explicit_model(tmp_path):
+    p=tmp_path/'app'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal','--scout','enabled')
+    assert r.returncode!=0
+    assert 'scout-model' in r.stderr.lower()
+
+
+def test_scout_model_rejected_when_disabled(tmp_path):
+    p=tmp_path/'app'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal','--scout','disabled','--scout-model','provider/x')
+    assert r.returncode!=0
+
+
+def test_scout_reconfigure_enable_change_disable_preserves_other_models(tmp_path):
+    p=tmp_path/'app'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal',
+          '--model','working-manager=provider/mgr','--model','coder=provider/coder','--model','qa-reviewer=provider/qa','--scout','disabled')
+    assert r.returncode==0, r.stderr
+    r=run(KIT/'scripts/install.py','--project-path',p,'--reconfigure','--preset','minimal',
+          '--model','working-manager=provider/mgr','--model','coder=provider/coder','--model','qa-reviewer=provider/qa',
+          '--scout','enabled','--scout-model','provider/research-1')
+    assert r.returncode==0, r.stderr
+    assert json.loads((p/'.opencode/opencode.jsonc').read_text(encoding='utf-8'))['agent']['scout']['model']=='provider/research-1'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--reconfigure','--preset','minimal',
+          '--model','working-manager=provider/mgr','--model','coder=provider/coder','--model','qa-reviewer=provider/qa',
+          '--scout','enabled','--scout-model','provider/research-2')
+    assert r.returncode==0, r.stderr
+    assert json.loads((p/'.opencode/opencode.jsonc').read_text(encoding='utf-8'))['agent']['scout']['model']=='provider/research-2'
+    assert 'model: provider/coder' in (p/'.opencode/agents/coder.md').read_text(encoding='utf-8')
+    r=run(KIT/'scripts/install.py','--project-path',p,'--reconfigure','--preset','minimal',
+          '--model','working-manager=provider/mgr','--model','coder=provider/coder','--model','qa-reviewer=provider/qa','--scout','disabled')
+    assert r.returncode==0, r.stderr
+    assert not (p/'.opencode/opencode.jsonc').exists()
+    assert 'scout: deny' in (p/'.opencode/agents/working-manager.md').read_text(encoding='utf-8')
+
+
+def test_scout_layer_preserves_existing_root_config(tmp_path):
+    p=tmp_path/'app'; p.mkdir()
+    root=p/'opencode.jsonc'; root.write_text('{\n  // user config\n  "model": "provider/user",\n  "mcp": {"custom": {"enabled": false}}\n}\n',encoding='utf-8')
+    before=root.read_text(encoding='utf-8')
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal','--scout','enabled','--scout-model','provider/research')
+    assert r.returncode==0, r.stderr
+    assert root.read_text(encoding='utf-8')==before
+    assert json.loads((p/'.opencode/opencode.jsonc').read_text(encoding='utf-8'))['agent']['scout']['model']=='provider/research'
+
+
+def test_scout_layer_refuses_to_overwrite_user_dot_opencode_config(tmp_path):
+    p=tmp_path/'app'; target=p/'.opencode/opencode.jsonc'; target.parent.mkdir(parents=True)
+    target.write_text('{"agent":{"other":{"model":"provider/user"}}}',encoding='utf-8')
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal','--scout','enabled','--scout-model','provider/research')
+    assert r.returncode!=0
+    assert target.read_text(encoding='utf-8')=='{"agent":{"other":{"model":"provider/user"}}}'
+
+
+def test_bootstrap_scout_opt_in_and_separate_model_documented():
+    install=(KIT/'bootstrap/commands/hhc-install.md').read_text(encoding='utf-8')
+    reconf=(KIT/'bootstrap/commands/hhc-reconfigure.md').read_text(encoding='utf-8')
+    assert 'Scout — proje bazında opt-in' in install
+    assert 'varsayılan' in install and 'Scout / Dış Araştırma' in install
+    assert '--scout <enabled|disabled>' in install and '--scout-model provider/model' in install
+    assert 'scout_enabled' in reconf and 'Scout / Dış Araştırma' in reconf

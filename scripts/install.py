@@ -7,6 +7,7 @@ from pathlib import Path
 KIT=Path(__file__).resolve().parents[1]
 PRESET_DIR=KIT/'presets'
 STATE_REL=Path('.opencode/hhc-team.json')
+SCOUT_CONFIG_REL=Path('.opencode/opencode.jsonc')
 PRIMARY_ROLES={'manager','working-manager','solo-agent'}
 
 class InstallError(RuntimeError): pass
@@ -60,6 +61,11 @@ def parse_models(values:list[str])->dict[str,str]:
         out[role]=valid_model_id(model)
     return out
 
+def inject_scout_policy(text:str, enabled:bool)->str:
+    if 'scout: allow' not in text:
+        return text
+    return text.replace('scout: allow', 'scout: allow' if enabled else 'scout: deny')
+
 def inject_model(text:str, model:str|None)->str:
     if not model: return text
     if not text.startswith('---\n'): raise InstallError('Rol dosyasında frontmatter bölümü yok.')
@@ -101,6 +107,12 @@ def generate_config(primary:str)->str:
     data={'$schema':'https://opencode.ai/config.json','default_agent':primary,'subagent_depth':1,'compaction':{'auto':True,'prune':True}}
     return json.dumps(data,ensure_ascii=False,indent=2)+'\n'
 
+def generate_scout_config(model:str)->str:
+    # OpenCode current runtime merges .opencode/opencode.json{,c} as a project config source.
+    # Keep this HHC-owned layer minimal so an existing root opencode.json(c) stays untouched.
+    data={'$schema':'https://opencode.ai/config.json','agent':{'scout':{'model':model}}}
+    return json.dumps(data,ensure_ascii=False,indent=2)+'\n'
+
 def main()->int:
     ap=argparse.ArgumentParser(description='HHC AI Team Kit proje kurulumu')
     ap.add_argument('--project-path',type=Path,default=Path('.'))
@@ -110,6 +122,8 @@ def main()->int:
     ap.add_argument('--roles',help='Yalnız custom profil için uzman roller: coder,qa-reviewer gibi; primary otomatik eklenir')
     ap.add_argument('--shared-model',help='Seçili tüm ajanlara aynı sağlayıcı/model kimliğini ata')
     ap.add_argument('--model',action='append',default=[],help='rol=sağlayıcı/model; tekrar edilebilir')
+    ap.add_argument('--scout',choices=['enabled','disabled'],help='Native OpenCode Scout kullanımı; yeni kurulumda varsayılan disabled')
+    ap.add_argument('--scout-model',help='Scout enabled ise native scout için sağlayıcı/model')
     ap.add_argument('--reconfigure',action='store_true',help='Mevcut HHC ekibini güvenli biçimde yeniden yapılandır')
     ap.add_argument('--force',action='store_true',help='Çakışan HHC hedef dosyalarının üzerine yaz')
     ap.add_argument('--dry-run',action='store_true')
@@ -119,6 +133,19 @@ def main()->int:
         if args.reconfigure and not previous: raise InstallError('Yeniden yapılandırılacak HHC kurulumu bulunamadı. Önce /hhc-install kullanın.')
         if args.shared_model and args.model: raise InstallError('--shared-model ile --model birlikte kullanılamaz.')
         explicit_models=parse_models(args.model); shared_model=valid_model_id(args.shared_model) if args.shared_model else None
+        if args.scout is None:
+            scout_enabled=bool(previous.get('scout_enabled',False)) if (args.reconfigure and previous) else False
+        else:
+            scout_enabled=args.scout=='enabled'
+        if scout_enabled:
+            inherited_scout=(previous or {}).get('scout_model') if args.reconfigure else None
+            scout_model=valid_model_id(args.scout_model or inherited_scout or '') if (args.scout_model or inherited_scout) else None
+            if not scout_model:
+                raise InstallError('Scout etkinse --scout-model sağlayıcı/model zorunludur; manager modeline sessiz devralma yapılmaz.')
+        else:
+            if args.scout_model:
+                raise InstallError('--scout-model yalnız --scout enabled ile kullanılabilir.')
+            scout_model=None
 
         if args.preset=='custom':
             specialists=parse_custom_specialists(args.roles)
@@ -151,13 +178,23 @@ def main()->int:
         desired=[]
         for role in roles:
             src=KIT/'roles'/f'{role}.md'; dst=op/'agents'/src.name
-            desired.append((src,dst,inject_model(src.read_text(encoding='utf-8'),models.get(role))))
+            role_text=inject_model(src.read_text(encoding='utf-8'),models.get(role))
+            if role in ('manager','working-manager'):
+                role_text=inject_scout_policy(role_text,scout_enabled)
+            desired.append((src,dst,role_text))
         for skill in skills:
             srcdir=KIT/'skills'/skill
             for src in srcdir.rglob('*'):
                 if src.is_file(): desired.append((src,op/'skills'/skill/src.relative_to(srcdir),None))
         for command in commands:
             src=KIT/'commands'/f'{command}.md'; desired.append((src,op/'commands'/src.name,None))
+        if scout_enabled:
+            scout_cfg=project/SCOUT_CONFIG_REL
+            scout_text=generate_scout_config(scout_model)
+            scout_rel=rel(project,scout_cfg)
+            if scout_cfg.exists() and scout_rel not in prev_managed and not args.force:
+                raise InstallError('Scout modeli güvenle yazılamıyor: .opencode/opencode.jsonc kullanıcı tarafından yönetiliyor. Dosyayı korumak için kurulum durduruldu; Scout override alanını manuel birleştirin veya HHC-owned config kullanın.')
+            desired.append((KIT/'VERSION',scout_cfg,scout_text))
 
         desired_rel={rel(project,dst) for _,dst,_ in desired}
         if args.reconfigure:
@@ -191,7 +228,7 @@ def main()->int:
 
         state={'schema_version':1,'kit_version':(KIT/'VERSION').read_text().strip(),'team_mode':args.team_mode,
                'preset':args.preset,'manager_mode':manager_mode,'primary_agent':primary,'roles':roles,'skills':skills,'commands':commands,
-               'model_policy':model_policy,'shared_model':shared_model,'models':models,'managed_files':sorted(managed),
+               'model_policy':model_policy,'shared_model':shared_model,'models':models,'scout_enabled':scout_enabled,'scout_model':scout_model,'managed_files':sorted(managed),
                'config_created_by_hhc':cfg_created,'config_sha256':cfg_hash}
         if not args.dry_run:
             state_path=project/STATE_REL; state_path.parent.mkdir(parents=True,exist_ok=True)
@@ -199,7 +236,7 @@ def main()->int:
         config_result={'path':str(cfg),'action':cfg_action,'existed_before':cfg_existed_before,'managed_by_hhc':cfg_created,
                        'notice':('Mevcut opencode.jsonc korundu; HHC bu dosyadaki default_agent, subagent_depth veya compaction değerlerini değiştirmedi. Mevcut OpenCode yapılandırmanız geçerlidir.' if cfg_action=='preserved-existing-config' else None)}
         print(json.dumps({'status':'DRY_RUN' if args.dry_run else ('RECONFIGURED' if args.reconfigure else 'COMPLETE'),'project':str(project),
-                          **{k:state[k] for k in ('team_mode','preset','manager_mode','primary_agent','roles','skills','commands','model_policy','shared_model','models')},
+                          **{k:state[k] for k in ('team_mode','preset','manager_mode','primary_agent','roles','skills','commands','model_policy','shared_model','models','scout_enabled','scout_model')},
                           'config':config_result,'written':written,'removed':removed,'preserved_existing':list(dict.fromkeys(preserved))},ensure_ascii=False,indent=2))
         if preserved:print('NOT: HHC tarafından güvenle yönetilemeyen mevcut dosyalar korunmuştur.',file=sys.stderr)
         return 0

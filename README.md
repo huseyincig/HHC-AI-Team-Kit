@@ -1,6 +1,6 @@
 # HHC AI Team Kit
 
-**Sürüm: 1.1.0-rc.19**
+**Sürüm: 1.1.0-rc.20**
 
 HHC AI Team Kit, OpenCode projelerine küçük ve model/sağlayıcı bağımsız bir yapay zekâ yazılım ekibi kurar. OpenCode'un native primary/subagent, Task, skill, command ve permission mekanizmalarını kullanır; ikinci bir görev/kanıt framework'ü kurmaz.
 
@@ -12,9 +12,11 @@ Makineye bir kez kurduktan sonra OpenCode içinde `/hhc-install` çalıştırıl
 2. Yalnız **Özel** profilde uzman rolleri
 3. **Tek Ana Ajan / Çoklu Ajan Ekibi**
 4. Çoklu ajanda yönetici tipi
-5. Mevcut proje için kullanılabilir modeller
-6. Tek Ana Ajanda bir model; Çoklu Ajanda doğrudan Türkçe rol → model eşlemesi
-7. Son özet ve **Kur** onayı
+5. **Scout** kullanımı: Evet / Hayır (varsayılan Hayır)
+6. Mevcut proje için kullanılabilir modeller
+7. Tek Ana Ajanda bir HHC ekip modeli; Çoklu Ajanda doğrudan Türkçe rol → model eşlemesi
+8. Scout açıksa ayrıca **Scout / Dış Araştırma** modeli
+9. Son özet ve **Kur** onayı
 
 Hazır profil seçildiyse yeniden rol sorulmaz. Çoklu Ajan model adımında kurulu her rolün modeli ayrı ayrı belirlenir; bir rolün seçimi diğer rollere otomatik taşınmaz.
 
@@ -35,6 +37,12 @@ Kullanıcıya görünen adlar Türkçedir: Çalışan Yönetici, Orkestratör, M
 Özel profil bir capability hapishanesi değildir. Örneğin yalnız Çalışan Yönetici + Kodlayıcı kurulmuşsa basit dosya sayma/arama işi için Depo Gezgini zorunlu sayılmaz; mevcut agent native `list/glob/grep/read/bash` araçlarıyla güvenilir biçimde yapabiliyorsa görevi tamamlar. Aynı prensip basit görsel doğrulama, test veya küçük mimari/güvenlik kontrolleri için de geçerlidir.
 
 Uzman rol ancak kalite, bağımsızlık veya context izolasyonu gerçek değer katıyorsa çağrılır. Uzman olmadan güvenilir sonuç mümkün değilse `/hhc-reconfigure` ile ilgili rolün eklenmesi önerilebilir.
+
+## Native dış araştırma ve kontrollü paralellik
+
+Yerel repository keşfi HHC `repository-explorer` rolünde kalır. Harici dokümantasyon, dependency kaynağı veya upstream implementasyon doğrulaması gerektiğinde manager, mevcut OpenCode runtime native `scout` subagent'ını sunuyorsa onu on-demand kullanabilir; HHC ayrı researcher/scout rolü veya MCP katmanı kurmaz. Scout görevi güncel ve birincil kaynak odaklı, dar bağlamlı ve kısa sonuçlu verilir.
+
+Scout proje bazında **opt-in**'dir ve varsayılan kapalıdır. Kullanıcı Scout'u açarsa model ayrıca seçilir ve native `scout` agent override'ına açıkça yazılır; böylece pahalı manager modelinin sessizce devralınmasına bırakılmaz. Scout kapalıysa HHC manager Task iznini `deny` üretir ve Scout model/config override'ı oluşturmaz. Ağır `team-review` komutu primary context'i kirletmemek için zaten `subtask: true` kullanır; kısa `team-status` aynı oturum bağlamında kalır. Native Task aracı experimental `background` seçeneğini gerçekten sunuyorsa manager yalnız bağımsız, çakışmayan read-only işleri background çalıştırabilir; seçenek yoksa aynı görevler normal foreground akışında devam eder. HHC experimental flag'i kendiliğinden açmaz.
 
 ## Model keşfi
 
@@ -66,6 +74,7 @@ aynı karar ağacını kullanır. Eski rc.16 `single + solo-agent` state'i okuna
   skills/
   commands/
   hhc-team.json
+  opencode.jsonc   # yalnız Scout açıksa HHC-owned minimal Scout model override
 opencode.jsonc
 ```
 
@@ -99,7 +108,7 @@ Global komutlar:
 
 ## Mevcut OpenCode config ve platform notu
 
-Projede `opencode.jsonc` zaten varsa HHC onu sessizce ezmez; kurulum sonucu config'in korunduğunu açıkça bildirir. Config yoksa küçük HHC varsayılanı oluşturulur; sabit `reserved` token değeri eklenmez.
+Projede kök `opencode.jsonc` zaten varsa HHC onu sessizce ezmez. Scout açıksa HHC yalnız `.opencode/opencode.jsonc` altında minimal `agent.scout.model` override katmanı üretir; mevcut kullanıcı `.opencode/opencode.jsonc` dosyasıyla çakışırsa güvenli olmak için kurulumu durdurur ve dosyayı ezmez. Config kaynaklarının merge edilmesi güncel OpenCode runtime davranışına dayanır. Config yoksa HHC kökte küçük varsayılanı oluşturur; kurulum sonucu config'in korunduğunu açıkça bildirir.
 
 Windows üzerindeki OpenCode Desktop ile WSL içinde `opencode serve` çalıştırılan backend farklı kullanıcı ortamlarıdır. WSL backend kullanılıyorsa HHC global bootstrap'ı WSL içinde de ayrıca kurulmalıdır. Linux/container testleri native Windows Desktop testi sayılmaz.
 

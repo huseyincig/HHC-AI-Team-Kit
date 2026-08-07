@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.0-rc.20
+
+- OpenCode native `scout` için proje bazlı opt-in katmanı: `--scout enabled|disabled` + zorunlu ayrı `--scout-model`. Varsayılan kapalı.
+- Scout proje bazında opt-in hale getirildi; varsayılan kapalıdır ve presetler otomatik etkinleştirmez.
+- Scout etkinleştirildiğinde installer mevcut model keşif listesinden ayrı `Scout / Dış Araştırma` modeli ister ve native `agent.scout.model` override'ını HHC-owned `.opencode/opencode.jsonc` katmanına yazar; manager modeline sessiz devralma bırakılmaz.
+- Scout kapalı kurulumlarda manager/working-manager çıktısında `scout: deny` üretilir; Scout model override'ı oluşturulmaz. Reconfigure Evet↔Hayır ve Scout model değiştirme akışları state ile yönetilir.
+- Mevcut kök `opencode.jsonc` korunur; kullanıcıya ait `.opencode/opencode.jsonc` ile çakışma varsa HHC dosyayı ezmek yerine güvenli hata verir.
+- Manager ve Working Manager, yerel repo keşfini `repository-explorer` ile harici dokümantasyon/dependency/upstream araştırmasını OpenCode native `scout` ile ayırır; Scout yalnız runtime gerçekten sunuyorsa on-demand çağrılır.
+- Scout handoff'u güncel/birincil kaynak, sürüm-tarih ve kısa karar özeti kurallarıyla sınırlandı; yeni HHC researcher rolü, skill veya MCP katmanı eklenmedi.
+- Native Task `background` seçeneği runtime tarafından sunuluyorsa yalnız bağımsız ve çakışmayan read-only işler için kullanılabilir; HHC experimental flag'i otomatik açmaz ve unsupported ortamda foreground fallback korunur.
+- `team-review` için mevcut `subtask: true` context izolasyonu doğrulandı; kısa `team-status` ana oturum bağlamında bırakıldı.
+
 ## 1.1.0-rc.19
 - Windows OpenCode Desktop model keşfi gerçek Desktop kullanıcı state'ine bağlandı: `%APPDATA%\ai.opencode.desktop\opencode.global.dat` içindeki `model.user[]` kayıtlarında yalnız `visibility == "show"` modelleri alınır.
 - Desktop model kimlikleri `providerID/modelID` olarak üretilir; `hide` kayıtları, bozuk kayıtlar ve tekrarlar kullanıcı listesine girmez.

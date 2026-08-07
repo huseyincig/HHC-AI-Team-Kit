@@ -11,9 +11,13 @@ Karar sırası:
 1. **Profil ilk soru.** Hazır profilde tekrar rol sorma; rol seçimi yalnız `custom` profilde.
 2. Çalışma biçimi: **Tek Ana Ajan** veya **Çoklu Ajan Ekibi**.
 3. Tek Ana Ajanda primary otomatik `working-manager`; yönetici tipi sorma. Profil uzmanlarını yine kur ve delegation'ı kapatma. Çoklu Ajanda `hands_on/orchestrator` seçtir.
-4. `{{PYTHON}} "{{KIT_ROOT}}/scripts/model_discovery.py" --project-path <proje>` ile mevcut proje için kullanılabilir modelleri bul.
-5. Tek Ana Ajanda bir model seçip bütün kurulu rollere uygula. Çoklu Ajanda kurulu rol sayısı kadar bağımsız model cevabı topla; her rolün modeli belirlenmeden ilerleme.
-6. Özet + onay.
+4. Scout kullanımı: **Evet / Hayır**. Varsayılan Hayır; preset otomatik açmaz. Evet ise model keşfinden sonra Scout / Dış Araştırma için ayrıca model seç.
+5. `{{PYTHON}} "{{KIT_ROOT}}/scripts/model_discovery.py" --project-path <proje>` ile mevcut proje için kullanılabilir modelleri bul.
+6. Tek Ana Ajanda bir model seçip bütün kurulu rollere uygula. Çoklu Ajanda kurulu rol sayısı kadar bağımsız model cevabı topla; her rolün modeli belirlenmeden ilerleme.
+7. Scout = Evet ise kurulu HHC rollerinden bağımsız `provider/model` seç; Scout manager/shared modeli sessizce devralmasın.
+8. Özet + onay.
+
+Scout = Hayır ise Scout modeli sorma ve backend'e `--scout disabled` geçir. Scout = Evet ise `--scout enabled --scout-model provider/model` geçir. Reconfigure sırasında mevcut `scout_enabled/scout_model` durumunu göster; Evet↔Hayır değişiminde yalnız HHC-owned Scout override yönetilsin.
 
 Bir sorunun cevabı önceki seçimden belliyse tekrar sorma. Çoklu Ajan model adımında ise cevaplar birbirinden bağımsızdır: her kurulu rolün modelini ayrı sor, hiçbir rolün seçimini diğer role otomatik taşıma ve tüm roller cevaplanmadan onaya geçme. Manuel `provider/model` girişi de rol bazındadır.
 
