@@ -139,9 +139,6 @@ def main()->int:
             manager_mode=args.manager_mode
             primary='working-manager' if manager_mode=='hands_on' else 'manager'
             roles=list(dict.fromkeys([primary,*specialists]))
-            # rc.16 uyumluluğu: hands_on eşlemesinde eski `manager=...` anahtarını kabul et.
-            if manager_mode=='hands_on' and 'manager' in explicit_models and 'working-manager' not in explicit_models:
-                explicit_models['working-manager']=explicit_models.pop('manager')
             if shared_model: models={role:shared_model for role in roles}
             else: models=dict(explicit_models)
             missing=set(models)-set(roles)

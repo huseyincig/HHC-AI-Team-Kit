@@ -593,3 +593,9 @@ def test_python_version_check_rejects_below_minimum():
         check_python_version(new)
     finally:
         sys.path.remove(scripts)
+
+
+def test_hands_on_rejects_manager_role_model_after_rc16_compat_removal(tmp_path):
+    p=tmp_path/'app'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--team-mode','multi','--manager-mode','hands_on','--preset','minimal','--model','manager=provider/x')
+    assert r.returncode!=0, r.stderr
