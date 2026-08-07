@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0
+
+- İlk kararlı sürüm. rc.19–rc.21 pre-release döngüsündeki tüm değişiklikleri içerir.
+- SMART model seçimi (models.dev metadata + capability validation), OpenCode native Scout için proje bazlı opt-in katmanı, Web Development için Playwright MCP opt-in.
+- Deterministik doğrulama önceliği, minimum-agent delegation, dar permission surface, OpenCode native mekanizmalara bağlılık korundu.
+
 ## 1.1.0-rc.21
 
 - `model_advisor.py`: models.dev metadata ile role göre capability/context/maliyet sınıflandırması; servis yoksa UNKNOWN/WARNING fallback.

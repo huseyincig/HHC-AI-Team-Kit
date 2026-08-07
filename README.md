@@ -1,6 +1,6 @@
 # HHC AI Team Kit
 
-**Sürüm: 1.1.0-rc.21**
+**Sürüm: 1.1.0**
 
 HHC AI Team Kit, OpenCode projelerine küçük ve model/sağlayıcı bağımsız bir yapay zekâ yazılım ekibi kurar. OpenCode'un native primary/subagent, Task, skill, command ve permission mekanizmalarını kullanır; ikinci bir görev/kanıt framework'ü kurmaz.
 

@@ -1,6 +1,6 @@
 {
   "name": "high-assurance",
-  "kit_version": "1.1.0-rc.21",
+  "kit_version": "1.1.0",
   "extends": "standard",
   "roles": [
     "security-reviewer"
