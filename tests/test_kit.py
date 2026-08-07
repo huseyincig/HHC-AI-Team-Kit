@@ -595,6 +595,19 @@ def test_python_version_check_rejects_below_minimum():
         sys.path.remove(scripts)
 
 
+def test_release_manifest_is_version_suffixed(tmp_path):
+    out=tmp_path/'dist'
+    r=run(KIT/'scripts/release-build.py','--out',out)
+    assert r.returncode==0, r.stderr
+    version=(KIT/'VERSION').read_text().strip()
+    manifest=out/f'RELEASE-MANIFEST-{version}.json'
+    assert manifest.is_file()
+    m=json.loads(manifest.read_text(encoding='utf-8'))
+    assert m['version']==version
+    assert m['archive']==f'HHC-AI-Team-Kit-{version}.zip'
+    assert not (out/'RELEASE-MANIFEST.json').is_file()
+
+
 def test_hands_on_rejects_manager_role_model_after_rc16_compat_removal(tmp_path):
     p=tmp_path/'app'
     r=run(KIT/'scripts/install.py','--project-path',p,'--team-mode','multi','--manager-mode','hands_on','--preset','minimal','--model','manager=provider/x')

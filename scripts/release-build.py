@@ -56,7 +56,7 @@ def main():
     z=a.out/f'HHC-AI-Team-Kit-{version}.zip'
     write_zip(z,e)
     m={'kit_name':'HHC AI Team Kit','version':version,'archive':z.name,'archive_sha256':sha(z),'file_count':len(e),'files':{n:sha(p) for n,p in sorted(e.items())}}
-    (a.out/'RELEASE-MANIFEST.json').write_text(json.dumps(m,indent=2)+'\n')
+    (a.out/f'RELEASE-MANIFEST-{version}.json').write_text(json.dumps(m,indent=2)+'\n')
     print(f'PAKET: {z}\nDOSYA SAYISI: {len(e)}\nSHA256: {m["archive_sha256"]}')
 
     if a.source_out:
