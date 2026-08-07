@@ -13,7 +13,7 @@ def test_model_optional_and_explicit(tmp_path):
     assert 'model: provider/model' in (p/'.opencode/agents/coder.md').read_text(encoding='utf-8'); assert '\nmodel:' not in (p/'.opencode/agents/working-manager.md').read_text(encoding='utf-8')
 def test_existing_config_preserved(tmp_path):
     p=tmp_path/'app'; p.mkdir(); (p/'opencode.jsonc').write_text('{"model":"x/y"}')
-    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal'); assert r.returncode==0; assert (p/'opencode.jsonc').read_text()=='{"model":"x/y"}'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal'); assert r.returncode==0;     assert (p/'opencode.jsonc').read_text(encoding='utf-8')=='{"model":"x/y"}'
 def test_idempotent(tmp_path):
     p=tmp_path/'app'; assert run(KIT/'scripts/install.py','--project-path',p,'--preset','standard').returncode==0; before={x.relative_to(p):x.read_bytes() for x in p.rglob('*') if x.is_file()}; assert run(KIT/'scripts/install.py','--project-path',p,'--preset','standard').returncode==0; after={x.relative_to(p):x.read_bytes() for x in p.rglob('*') if x.is_file()}; assert before==after
 def test_release_clean(tmp_path):
@@ -48,7 +48,7 @@ def test_single_main_agent_keeps_profile_specialists_and_shared_model(tmp_path):
     assert 'solo-agent' not in agents
     for name in agents:
         assert 'model: provider/shared' in (p/f'.opencode/agents/{name}.md').read_text(encoding='utf-8')
-    state=json.loads((p/'.opencode/hhc-team.json').read_text())
+    state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
     assert state['team_mode']=='single' and state['primary_agent']=='working-manager'
     assert state['manager_mode']=='hands_on' and state['model_policy']=='shared'
 
@@ -57,7 +57,7 @@ def test_single_custom_adds_working_manager_automatically(tmp_path):
     p=tmp_path/'app'
     r=run(KIT/'scripts/install.py','--project-path',p,'--team-mode','single','--preset','custom','--roles','coder,visual-qa','--shared-model','provider/shared')
     assert r.returncode==0, r.stderr
-    state=json.loads((p/'.opencode/hhc-team.json').read_text())
+    state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
     assert state['roles']==['working-manager','coder','visual-qa']
 
 
@@ -84,15 +84,15 @@ def test_shared_and_per_role_models_are_mutually_exclusive(tmp_path):
 def test_reconfigure_removes_old_hhc_roles_but_keeps_user_files(tmp_path):
     p=tmp_path/'app'
     assert run(KIT/'scripts/install.py','--project-path',p,'--preset','standard').returncode==0
-    user=p/'.opencode/agents/my-private-agent.md'; user.write_text('kullanıcı dosyası')
+    user=p/'.opencode/agents/my-private-agent.md'; user.write_text('kullanıcı dosyası',encoding='utf-8')
     assert (p/'.opencode/agents/architect.md').exists()
     r=run(KIT/'scripts/install.py','--project-path',p,'--reconfigure','--team-mode','multi','--preset','minimal','--manager-mode','orchestrator','--shared-model','provider/team')
     assert r.returncode==0, r.stderr
     assert not (p/'.opencode/agents/architect.md').exists()
-    assert user.read_text()=='kullanıcı dosyası'
+    assert user.read_text(encoding='utf-8')=='kullanıcı dosyası'
     assert (p/'.opencode/agents/manager.md').exists()
     assert not (p/'.opencode/agents/working-manager.md').exists()
-    state=json.loads((p/'.opencode/hhc-team.json').read_text())
+    state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
     assert state['preset']=='minimal' and state['manager_mode']=='orchestrator'
 
 
@@ -103,12 +103,12 @@ def test_reconfigure_requires_state(tmp_path):
 
 
 def test_existing_user_collision_not_claimed_as_hhc_managed(tmp_path):
-    p=tmp_path/'app'; target=p/'.opencode/agents/coder.md'; target.parent.mkdir(parents=True); target.write_text('özel coder')
+    p=tmp_path/'app'; target=p/'.opencode/agents/coder.md'; target.parent.mkdir(parents=True); target.write_text('özel coder',encoding='utf-8')
     r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal')
     assert r.returncode==0
-    state=json.loads((p/'.opencode/hhc-team.json').read_text())
+    state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
     assert '.opencode/agents/coder.md' not in state['managed_files']
-    assert target.read_text()=='özel coder'
+    assert target.read_text(encoding='utf-8')=='özel coder'
 
 
 def test_global_bootstrap_contains_reconfigure(tmp_path, monkeypatch):
@@ -134,7 +134,7 @@ def test_adopts_identical_pre_state_install_for_future_reconfigure(tmp_path):
     # Aynı kurulum yeniden çalışınca mevcut birebir HHC dosyaları güvenle sahiplenilir.
     r=run(KIT/'scripts/install.py','--project-path',p,'--preset','standard')
     assert r.returncode==0, r.stderr
-    data=json.loads(state.read_text())
+    data=json.loads(state.read_text(encoding='utf-8'))
     assert '.opencode/agents/architect.md' in data['managed_files']
     assert data['config_created_by_hhc'] is True
     # Artık profil değişikliği eski HHC rolünü temizleyebilir.
@@ -150,7 +150,7 @@ def test_custom_profile_multi_requires_specialists_but_single_may_be_manager_onl
     p2=tmp_path/'single'
     r=run(KIT/'scripts/install.py','--project-path',p2,'--team-mode','single','--preset','custom','--shared-model','provider/shared')
     assert r.returncode==0, r.stderr
-    state=json.loads((p2/'.opencode/hhc-team.json').read_text())
+    state=json.loads((p2/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
     assert state['roles']==['working-manager']
 
 
@@ -340,7 +340,7 @@ def test_model_discovery_refresh_is_explicit_only(tmp_path, monkeypatch):
     _fake_opencode(bindir, f"import sys\nwith open({log.as_posix()!r},'a') as f:\n    f.write(' '.join(sys.argv[1:])+'\\n')\nprint('provider/model-x')\n")
     monkeypatch.setenv('PATH',str(bindir)); monkeypatch.setenv('HOME',str(tmp_path/'home')); monkeypatch.setenv('APPDATA','')
     r=run(KIT/'scripts/model_discovery.py'); assert r.returncode==0
-    assert log.read_text().strip()=='models'
+    assert log.read_text(encoding='utf-8').strip()=='models'
     data=json.loads(r.stdout); assert data['refreshed'] is False
     r=run(KIT/'scripts/model_discovery.py','--refresh'); assert r.returncode==0
     assert log.read_text().splitlines()==['models','models --refresh']
@@ -352,7 +352,7 @@ def test_existing_config_result_explicitly_reports_preservation(tmp_path):
     r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal')
     assert r.returncode==0, r.stderr
     data=json.loads(r.stdout)
-    assert cfg.read_text()=='{"model":"x/y"}'
+    assert cfg.read_text(encoding='utf-8')=='{"model":"x/y"}'
     assert data['config']['action']=='preserved-existing-config'
     assert data['config']['existed_before'] is True
     assert 'değiştirmedi' in data['config']['notice']
@@ -361,7 +361,7 @@ def test_existing_config_result_explicitly_reports_preservation(tmp_path):
 def test_new_config_uses_native_minimum_without_reserved(tmp_path):
     p=tmp_path/'app'; r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal')
     assert r.returncode==0, r.stderr
-    cfg=json.loads((p/'opencode.jsonc').read_text())
+    cfg=json.loads((p/'opencode.jsonc').read_text(encoding='utf-8'))
     assert cfg['subagent_depth']==1
     assert cfg['compaction']=={'auto':True,'prune':True}
     assert 'reserved' not in cfg['compaction'] and 'reserved' not in cfg
@@ -496,7 +496,7 @@ def test_rc18_source_and_dist_exclude_personal_opencode_files(tmp_path):
     r=run(KIT/'scripts/release-build.py','--out',out,'--source-out',source)
     assert r.returncode==0, r.stderr
     import zipfile
-    for z in (out/f'HHC-AI-Team-Kit-{(KIT/"VERSION").read_text().strip()}.zip', source/f'HHC-AI-Team-Kit-{(KIT/"VERSION").read_text().strip()}-SOURCE.zip'):
+    for z in (out/f'HHC-AI-Team-Kit-{(KIT/"VERSION").read_text(encoding="utf-8").strip()}.zip', source/f'HHC-AI-Team-Kit-{(KIT/"VERSION").read_text(encoding="utf-8").strip()}-SOURCE.zip'):
         with zipfile.ZipFile(z) as f:
             names=set(f.namelist())
         assert 'AGENTS.md' not in names

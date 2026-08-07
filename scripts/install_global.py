@@ -19,12 +19,12 @@ def install_bootstrap(dst:Path):
     oc=opencode_root(); py=Path(sys.executable).resolve()
     for rel in ['commands/hhc-install.md','commands/hhc-install-remote.md','commands/hhc-reconfigure.md']:
         src=dst/'bootstrap'/rel; target=oc/rel; target.parent.mkdir(parents=True,exist_ok=True)
-        target.write_text(src.read_text(encoding='utf-8').replace('{{KIT_ROOT}}',str(dst)).replace('{{PYTHON}}',str(py)),encoding='utf-8')
+        target.write_text(src.read_text(encoding='utf-8').replace('{{KIT_ROOT}}',str(dst)).replace('{{PYTHON}}',str(py)),encoding='utf-8',newline='')
     src=dst/'bootstrap/skills/hhc-project-bootstrap'; target=oc/'skills/hhc-project-bootstrap'
     if target.exists(): shutil.rmtree(target)
     shutil.copytree(src,target)
     for p in target.rglob('*'):
-        if p.is_file(): p.write_text(p.read_text(encoding='utf-8').replace('{{KIT_ROOT}}',str(dst)).replace('{{PYTHON}}',str(py)),encoding='utf-8')
+        if p.is_file(): p.write_text(p.read_text(encoding='utf-8').replace('{{KIT_ROOT}}',str(dst)).replace('{{PYTHON}}',str(py)),encoding='utf-8',newline='')
 def main()->int:
     ap=argparse.ArgumentParser(); ap.add_argument('--install',action='store_true'); args=ap.parse_args()
     if not args.install: ap.error('--install gerekli')

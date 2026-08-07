@@ -181,12 +181,12 @@ def main()->int:
                 previous_cfg_created=True; previous_cfg_hash=sha_file(cfg)
             can_update=args.force or (args.reconfigure and previous_cfg_created and previous_cfg_hash and sha_file(cfg)==previous_cfg_hash)
             if can_update:
-                if not args.dry_run:cfg.write_text(generate_config(primary),encoding='utf-8'); written.append(str(cfg))
+                if not args.dry_run:cfg.write_text(generate_config(primary),encoding='utf-8',newline=''); written.append(str(cfg))
                 cfg_created=True; cfg_action='updated-hhc-config'
             else:
                 preserved.append(str(cfg)); cfg_created=bool(previous_cfg_created and previous_cfg_hash and sha_file(cfg)==previous_cfg_hash); cfg_action='preserved-existing-config'
         else:
-            if not args.dry_run:cfg.write_text(generate_config(primary),encoding='utf-8'); written.append(str(cfg))
+            if not args.dry_run:cfg.write_text(generate_config(primary),encoding='utf-8',newline=''); written.append(str(cfg))
             cfg_created=True; cfg_action='created-hhc-config'
         if cfg.exists() and cfg_created and not args.dry_run:cfg_hash=sha_file(cfg)
         elif previous_cfg_hash and cfg_created:cfg_hash=previous_cfg_hash
@@ -197,7 +197,7 @@ def main()->int:
                'config_created_by_hhc':cfg_created,'config_sha256':cfg_hash}
         if not args.dry_run:
             state_path=project/STATE_REL; state_path.parent.mkdir(parents=True,exist_ok=True)
-            state_path.write_text(json.dumps(state,ensure_ascii=False,indent=2)+'\n',encoding='utf-8'); remove_empty_dirs(op)
+            state_path.write_text(json.dumps(state,ensure_ascii=False,indent=2)+'\n',encoding='utf-8',newline=''); remove_empty_dirs(op)
         config_result={'path':str(cfg),'action':cfg_action,'existed_before':cfg_existed_before,'managed_by_hhc':cfg_created,
                        'notice':('Mevcut opencode.jsonc korundu; HHC bu dosyadaki default_agent, subagent_depth veya compaction değerlerini değiştirmedi. Mevcut OpenCode yapılandırmanız geçerlidir.' if cfg_action=='preserved-existing-config' else None)}
         print(json.dumps({'status':'DRY_RUN' if args.dry_run else ('RECONFIGURED' if args.reconfigure else 'COMPLETE'),'project':str(project),
