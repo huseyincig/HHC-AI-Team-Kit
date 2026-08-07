@@ -25,8 +25,9 @@ def load_preset(name:str, seen=None)->dict:
     return base
 
 def safe_project(path:Path)->Path:
-    p=path.expanduser().resolve(); p.mkdir(parents=True,exist_ok=True)
-    if p.is_symlink(): raise InstallError('Proje kökü sembolik bağlantı olamaz.')
+    expanded=path.expanduser()
+    if expanded.is_symlink(): raise InstallError('Proje kökü sembolik bağlantı olamaz.')
+    p=expanded.resolve(); p.mkdir(parents=True,exist_ok=True)
     return p
 
 def available_roles()->list[str]: return sorted(x.stem for x in (KIT/'roles').glob('*.md'))

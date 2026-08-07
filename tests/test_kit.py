@@ -562,3 +562,14 @@ def test_rc19_bootstrap_documents_desktop_show_source_and_keeps_role_complete_fl
     install=(KIT/'bootstrap/commands/hhc-install.md').read_text(encoding='utf-8')
     assert 'her rol için ayrı model cevabı topla' in install
     assert 'Bütün rollerin modeli belirlenmeden model adımından çıkma' in install
+
+
+def test_symlink_project_root_rejected(tmp_path):
+    real=tmp_path/'real'; real.mkdir()
+    link=tmp_path/'link'
+    try:
+        os.symlink(real,link,target_is_directory=True)
+    except (OSError,AttributeError):
+        pytest.skip('symlink not available on this platform/permission')
+    r=run(KIT/'scripts/install.py','--project-path',link,'--preset','minimal')
+    assert r.returncode!=0, f'unexpected success; stderr={r.stderr}'
