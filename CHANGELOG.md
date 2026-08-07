@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0-rc.21
+
+- `model_advisor.py`: models.dev metadata ile role göre capability/context/maliyet sınıflandırması; servis yoksa UNKNOWN/WARNING fallback.
+- Installer backend için opt-in `--validate-model-capabilities`; açık zorunlu capability eksiklerinde blok, bilinmeyen metadata'da uyarı.
+- Web Development için default kapalı `--playwright enabled|disabled`; project-local Microsoft Playwright MCP 0.0.78.
+- Playwright MCP global tool deny + yalnız Visual QA allow override ile role-specific sınırlandırıldı.
+- Scout, `subagent_depth: 1`, background ve mevcut rol/skill mimarisi değiştirilmedi.
+- PHP/SQL/Docker/WordPress/Chrome DevTools gibi ek MCP'ler eklenmedi.
+
 ## 1.1.0-rc.20
 
 - OpenCode native `scout` için proje bazlı opt-in katmanı: `--scout enabled|disabled` + zorunlu ayrı `--scout-model`. Varsayılan kapalı.

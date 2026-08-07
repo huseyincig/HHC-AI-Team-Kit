@@ -12,10 +12,18 @@ Karar sırası:
 2. Çalışma biçimi: **Tek Ana Ajan** veya **Çoklu Ajan Ekibi**.
 3. Tek Ana Ajanda primary otomatik `working-manager`; yönetici tipi sorma. Profil uzmanlarını yine kur ve delegation'ı kapatma. Çoklu Ajanda `hands_on/orchestrator` seçtir.
 4. Scout kullanımı: **Evet / Hayır**. Varsayılan Hayır; preset otomatik açmaz. Evet ise model keşfinden sonra Scout / Dış Araştırma için ayrıca model seç.
-5. `{{PYTHON}} "{{KIT_ROOT}}/scripts/model_discovery.py" --project-path <proje>` ile mevcut proje için kullanılabilir modelleri bul.
-6. Tek Ana Ajanda bir model seçip bütün kurulu rollere uygula. Çoklu Ajanda kurulu rol sayısı kadar bağımsız model cevabı topla; her rolün modeli belirlenmeden ilerleme.
-7. Scout = Evet ise kurulu HHC rollerinden bağımsız `provider/model` seç; Scout manager/shared modeli sessizce devralmasın.
-8. Özet + onay.
+5. Profil Web Development ise Playwright MCP için **Evet / Hayır** sor; varsayılan Hayır. Evet ise yalnız Visual QA erişimi olacak şekilde project-local MCP üretilecek; web dışı profilde sorma.
+6. `{{PYTHON}} "{{KIT_ROOT}}/scripts/model_advisor.py" --project-path <proje> --role <kurulu-role> ... [--role scout]` ile modelleri keşfet ve models.dev metadata varsa capability/context/maliyet danışmanını üret.
+7. Tek Ana Ajanda bir model seçip bütün kurulu rollere uygula. Çoklu Ajanda kurulu rol sayısı kadar bağımsız model cevabı topla; her rolün modeli belirlenmeden ilerleme.
+8. Scout = Evet ise kurulu HHC rollerinden bağımsız `provider/model` seç; Scout manager/shared modeli sessizce devralmasın.
+9. Özet + onay.
+
+
+Model danışmanı için kurallar: `INCOMPATIBLE` zorunlu capability eksikliğidir ve seçilmez. `WARNING`/UNKNOWN metadata eksikliği veya belirsizliğidir; kullanıcı açıkça **Yine de kullan** demeden seçimi kabul etme. Metadata servisi yoksa kurulumu bozma. Fiyatı tahmin etme. Hardcoded model markası önerme ve runtime otomatik model router oluşturma.
+
+Web araç prensibi: Playwright MCP yalnız `web-development` profilinde opt-in ve default kapalıdır. Chrome DevTools/ikinci browser MCP ekleme. PHP, Composer, WP-CLI, MySQL/MariaDB, Docker, Git, PHPUnit, PHPCS/WPCS, npm ve curl için deterministik CLI varken MCP ekleme.
+
+Playwright = Evet yalnız web-development için backend'e `--playwright enabled` geçir; aksi halde `--playwright disabled`. Normal etkileşimli kurulum backend'e `--validate-model-capabilities` geçir.
 
 Scout = Hayır ise Scout modeli sorma ve backend'e `--scout disabled` geçir. Scout = Evet ise `--scout enabled --scout-model provider/model` geçir. Reconfigure sırasında mevcut `scout_enabled/scout_model` durumunu göster; Evet↔Hayır değişiminde yalnız HHC-owned Scout override yönetilsin.
 

@@ -9,7 +9,9 @@ def main()->int:
     ap.add_argument('--team-mode',choices=['single','multi'],default='multi'); ap.add_argument('--preset',default='standard')
     ap.add_argument('--manager-mode',choices=['orchestrator','hands_on'],default='hands_on'); ap.add_argument('--roles')
     ap.add_argument('--shared-model'); ap.add_argument('--model',action='append',default=[])
-    ap.add_argument('--scout',choices=['enabled','disabled']); ap.add_argument('--scout-model'); args=ap.parse_args()
+    ap.add_argument('--scout',choices=['enabled','disabled']); ap.add_argument('--scout-model')
+    ap.add_argument('--playwright',choices=['enabled','disabled']); ap.add_argument('--validate-model-capabilities',action='store_true')
+    args=ap.parse_args()
     repo=args.repo.strip()
     if not repo or repo.startswith('-'): print('HHC-REMOTE-001: Geçersiz kod deposu adresi.',file=sys.stderr); return 2
     name=repo.rstrip('/').rsplit('/',1)[-1]
@@ -29,5 +31,7 @@ def main()->int:
     for m in args.model:cmd += ['--model',m]
     if args.scout:cmd += ['--scout',args.scout]
     if args.scout_model:cmd += ['--scout-model',args.scout_model]
+    if args.playwright:cmd += ['--playwright',args.playwright]
+    if args.validate_model_capabilities:cmd += ['--validate-model-capabilities']
     return subprocess.call(cmd)
 if __name__=='__main__': raise SystemExit(main())

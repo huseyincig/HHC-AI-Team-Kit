@@ -59,13 +59,25 @@ Kısa açıklama: Scout yalnız harici araştırma içindir; yerel repository ar
 
 Preset Scout'u otomatik açmaz. Kullanıcı açıkça Evet demeden enable etme.
 
-## 4. Bu proje için kullanılabilir modelleri keşfet
+## 4. Web Development ise Playwright MCP — opt-in
 
-Model adımından hemen önce bir kez:
+Profil `web-development` ise Scout kararından sonra şunu sor:
 
-`{{PYTHON}} "{{KIT_ROOT}}/scripts/model_discovery.py" --project-path .`
+**Web projelerinde tarayıcı üzerinden görsel, responsive ve etkileşimli doğrulama için Playwright MCP kullanmak istiyor musunuz?**
 
-çalıştır.
+- **Hayır** (varsayılan): MCP eklenmez.
+- **Evet**: Microsoft Playwright MCP proje-local olarak eklenir; global `playwright_*` deny ve yalnız Görsel QA agent override `allow` kullanılır. PHP, SQL, Docker, Composer veya WP-CLI MCP yapılmaz.
+
+Web dışı profillerde bu soruyu gösterme. Chrome DevTools veya ikinci browser MCP ekleme.
+
+## 5. Model keşfi + SMART capability danışmanı
+
+Model adımından hemen önce, kurulu roller kesinleştikten sonra bir kez:
+
+`{{PYTHON}} "{{KIT_ROOT}}/scripts/model_advisor.py" --project-path . --role <kurulu-role> ... [--role scout]`
+
+çalıştır. Scout açıksa `--role scout` ekle. `model_advisor.py`, mevcut `model_discovery.py` keşfini kullanır ve erişilebilirse models.dev metadata ile capability/context/maliyet bilgisi ekler.
+
 
 OpenCode Desktop state'i mevcutsa `model_discovery.py` önce `%APPDATA%\ai.opencode.desktop\opencode.global.dat` içindeki `model.user[]` kayıtlarından yalnız `visibility == "show"` olan modelleri kullanır. Bu, Windows Desktop `/models` görünürlüğü için doğrulanmış yerel kullanıcı state'idir; dosya biçimi public/stable OpenCode API olmadığı için **BEST-EFFORT** kabul edilir. Sonuç `providerID/modelID` biçimindedir.
 
@@ -73,13 +85,21 @@ Desktop state yoksa veya görünür model döndürmüyorsa resmî `opencode mode
 
 Model listesi boşsa kendi kendine tekrar etme. Kullanıcı açıkça isterse bir normal yeniden deneme veya bir kez:
 
-`{{PYTHON}} "{{KIT_ROOT}}/scripts/model_discovery.py" --project-path . --refresh`
+`{{PYTHON}} "{{KIT_ROOT}}/scripts/model_advisor.py" --project-path . --refresh`
 
 çalıştır. Refresh otomatik çalıştırılmamalı; yalnız kullanıcı açıkça seçerse çalıştırılmalıdır. Sonuç yine boşsa tam `provider/model` kimliğini elle girme veya kurulumu iptal etme seçenekleri sun. Normal kurulumda **OpenCode'u devral** seçeneği gösterme.
 
 Liste uzunsa önce sağlayıcıyı, sonra modeli seçtir. Model kimliği uydurma.
 
-## 5. Model ataması
+Advisor çıktısında model başına `RECOMMENDED / COMPATIBLE / WARNING / INCOMPATIBLE` sınıfını, tool calling, image input, reasoning, context/output limiti ve varsa provider fiyatını kısa göster. Fiyat bilinmiyorsa tahmin etme.
+
+- `INCOMPATIBLE`: zorunlu capability açıkça yok; seçtirme.
+- `WARNING`: metadata eksik/belirsiz; kullanıcıya bunu açıkla ve **Yine de kullan / Başka model seç** şeklinde explicit karar al.
+- metadata servisi yoksa kurulumu bozma; capability UNKNOWN/WARNING kabul et.
+
+Hardcoded marka/model tavsiyesi yapma. Runtime model router/fallback oluşturma; bu danışman yalnız kurulum/reconfigure seçim aşamasındadır.
+
+## 6. Model ataması
 
 ### Tek Ana Ajan
 Yalnız **bir model** seçtir. Seçilen modeli Çalışan Yönetici ve profildeki bütün kurulu uzmanlara uygula. Backend'de `--shared-model provider/model` kullan. Bu model yalnız kurulu HHC rollerine uygulanır. Scout = Evet ise ayrıca **Scout / Dış Araştırma** modeli seçtir; Scout manager/shared modeli sessizce devralmasın.
@@ -109,7 +129,7 @@ Bu örnek yalnız sonuç biçimini gösterir; model kimliği uydurma.
 
 Scout = Evet ise kurulu rollerden bağımsız olarak ayrıca **Scout / Dış Araştırma** için bir `provider/model` seçimi al. Bu seçim başka role otomatik kopyalanmaz ve pahalı manager modeline sessiz fallback yapılmaz.
 
-## 6. Son onay
+## 7. Son onay
 
 Dosya yazmadan önce tek özet göster:
 - profil
@@ -118,6 +138,8 @@ Dosya yazmadan önce tek özet göster:
 - Tek Ana Ajan ise Ana Ajan: Çalışan Yönetici + seçilen tek model
 - Çoklu Ajan ise yönetici tipi + Türkçe rol → model dağılımı
 - Scout: Kapalı veya Açık + seçilen Scout modeli
+- Playwright MCP: Web profilinde Kapalı/Açık
+- role/model capability uyarıları ve explicit override varsa özeti
 - hedef proje
 
 `question` ile **Kur / Ayarları değiştir / İptal** seçeneklerini sun. Kur onayı olmadan backend'i çağırma.
@@ -125,12 +147,12 @@ Dosya yazmadan önce tek özet göster:
 ## Backend
 
 Tek Ana Ajan:
-`{{PYTHON}} "{{KIT_ROOT}}/scripts/install.py" --project-path . --team-mode single --preset <profil> [--roles <yalnız-custom-uzmanlar>] --shared-model provider/model --scout <enabled|disabled> [--scout-model provider/model]`
+`{{PYTHON}} "{{KIT_ROOT}}/scripts/install.py" --project-path . --team-mode single --preset <profil> [--roles <yalnız-custom-uzmanlar>] --shared-model provider/model --scout <enabled|disabled> [--scout-model provider/model] --playwright <enabled|disabled> --validate-model-capabilities`
 
 Hazır Çoklu Ajan profili:
-`{{PYTHON}} "{{KIT_ROOT}}/scripts/install.py" --project-path . --team-mode multi --preset <profil> --manager-mode <mod> --model role=provider/model ... --scout <enabled|disabled> [--scout-model provider/model]`
+`{{PYTHON}} "{{KIT_ROOT}}/scripts/install.py" --project-path . --team-mode multi --preset <profil> --manager-mode <mod> --model role=provider/model ... --scout <enabled|disabled> [--scout-model provider/model] --playwright <enabled|disabled> --validate-model-capabilities`
 
 Özel Çoklu Ajan profili:
-`{{PYTHON}} "{{KIT_ROOT}}/scripts/install.py" --project-path . --team-mode multi --preset custom --manager-mode <mod> --roles coder,qa-reviewer,... --model role=provider/model ... --scout <enabled|disabled> [--scout-model provider/model]`
+`{{PYTHON}} "{{KIT_ROOT}}/scripts/install.py" --project-path . --team-mode multi --preset custom --manager-mode <mod> --roles coder,qa-reviewer,... --model role=provider/model ... --scout <enabled|disabled> [--scout-model provider/model] --playwright <enabled|disabled> --validate-model-capabilities`
 
 Kurulum sonunda JSON çıktısından profil, çalışma biçimi, primary ajan, roller, model dağılımı, Scout açık/kapalı + Scout modeli, yazılan/korunan dosyalar ve `config` sonucunu kısa raporla. `config.action` `preserved-existing-config` ise mevcut `opencode.jsonc` dosyasının korunduğunu ve HHC'nin bu dosyadaki `default_agent`, `subagent_depth` veya `compaction` değerlerini değiştirmediğini açıkça belirt.

@@ -1,6 +1,6 @@
 # HHC AI Team Kit
 
-**Sürüm: 1.1.0-rc.20**
+**Sürüm: 1.1.0-rc.21**
 
 HHC AI Team Kit, OpenCode projelerine küçük ve model/sağlayıcı bağımsız bir yapay zekâ yazılım ekibi kurar. OpenCode'un native primary/subagent, Task, skill, command ve permission mekanizmalarını kullanır; ikinci bir görev/kanıt framework'ü kurmaz.
 
@@ -123,3 +123,16 @@ python scripts/validate.py
 python -m pytest -q
 python scripts/release-build.py
 ```
+
+
+## SMART model seçimi
+
+Kurulum sihirbazı mevcut OpenCode model keşfini korur; seçim aşamasında `scripts/model_advisor.py` ile models.dev metadata'sı erişilebilirse role göre capability/context/maliyet bilgisi gösterir. Zorunlu capability açıkça yoksa model uyumsuz kabul edilir; metadata eksik veya doğrulanamıyorsa kurulum kırılmaz ve seçim WARNING/UNKNOWN olarak kullanıcı onayına bırakılır. HHC runtime'da modeli otomatik değiştiren premium fallback/router oluşturmaz; seçilen rol önceden atanmış modeli kullanır.
+
+Başlıca zorunlu kontroller: manager/working-manager/repository-explorer/coder için tool calling; visual-qa için tool calling + image input. Metadata provider'a göre değişebildiği için bilinmeyen alanlar tahmin edilmez. Fiyat varsa provider metadata'sından gösterilir, yoksa `bilinmiyor` kabul edilir.
+
+## Web Development ve Playwright MCP
+
+`web-development` profilinde Microsoft Playwright MCP **opt-in** sunulur ve varsayılan kapalıdır. Etkinleştirilirse HHC project-local MCP config üretir, `playwright_*` araçlarını global olarak deny eder ve yalnız `visual-qa` agent'ında allow override kullanır. Paket şu an doğrulanan `@playwright/mcp@0.0.78` sürümünü pinler. Node.js 18+ gerekir.
+
+Chrome DevTools veya ikinci bir browser MCP varsayılan olarak eklenmez. PHP, Composer, WP-CLI, MySQL/MariaDB, Docker, Git, PHPUnit, PHPCS/WPCS, npm ve curl gibi deterministik CLI araçları MCP'ye çevrilmez. İlke: **güvenilir CLI varsa varsayılan MCP ekleme**.

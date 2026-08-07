@@ -79,3 +79,14 @@ Uzak kurulum klonlamadan sonra aynı rc.17 wizard karar ağacını kullanır.
 ## Çoklu ajan model seçimi
 
 Çoklu Ajan Ekibinde kurulu her rol için model ayrı seçilir. Bir rolün modeli diğer rollere otomatik uygulanmaz ve bütün rol-model eşlemeleri tamamlanmadan kurulum onayına geçilmez.
+
+
+## Model capability doğrulaması
+
+Etkileşimli kurulumda model listesi `model_advisor.py` üzerinden zenginleştirilir. Advisor mevcut `model_discovery.py` kaynaklarını kullanır; models.dev erişilemezse model keşfi çalışmaya devam eder. `INCOMPATIBLE` model zorunlu capability'yi açıkça karşılamaz; `WARNING` ise metadata eksik/belirsizdir ve açık kullanıcı onayıyla kullanılabilir. Runtime model router yoktur.
+
+## Playwright MCP
+
+Yalnız `web-development` profilinde sorulur ve varsayılan **Hayır**dır. Evet seçilirse `--playwright enabled` ile project-local Microsoft Playwright MCP yazılır. Global `playwright_*: deny` kuralı ve Visual QA'da agent-level allow override kullanılır. Reconfigure ile açılıp kapatılabilir. Web dışı profilde etkinleştirilemez.
+
+PHP/SQL/Docker/WordPress/Git için ayrı MCP kurulmaz; ilgili CLI araçları kullanılır.

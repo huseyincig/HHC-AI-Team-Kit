@@ -7,7 +7,8 @@ from pathlib import Path
 KIT=Path(__file__).resolve().parents[1]
 PRESET_DIR=KIT/'presets'
 STATE_REL=Path('.opencode/hhc-team.json')
-SCOUT_CONFIG_REL=Path('.opencode/opencode.jsonc')
+AUX_CONFIG_REL=Path('.opencode/opencode.jsonc')
+PLAYWRIGHT_MCP_VERSION='0.0.78'
 PRIMARY_ROLES={'manager','working-manager','solo-agent'}
 
 class InstallError(RuntimeError): pass
@@ -66,6 +67,20 @@ def inject_scout_policy(text:str, enabled:bool)->str:
         return text
     return text.replace('scout: allow', 'scout: allow' if enabled else 'scout: deny')
 
+def inject_playwright_policy(text:str, *, role:str, enabled:bool)->str:
+    """Playwright MCP araçlarını yalnız visual-qa'ya açar; diğer kurulu ajanlarda deny eder."""
+    if not enabled: return text
+    if not text.startswith('---\n'): raise InstallError('Rol dosyasında frontmatter bölümü yok.')
+    end=text.find('\n---',4)
+    if end<0: raise InstallError('Rol dosyasındaki frontmatter bölümü kapanmıyor.')
+    head=text[4:end]
+    if '\npermission:' not in '\n'+head:
+        raise InstallError(f'{role} rolünde permission bölümü yok.')
+    if role!='visual-qa': return text
+    # Global config playwright_* deny eder; yalnız visual-qa agent override ile allow eder.
+    head=head.replace('permission:\n', 'permission:\n  "playwright_*": allow\n', 1)
+    return '---\n'+head+'\n---'+text[end+4:]
+
 def inject_model(text:str, model:str|None)->str:
     if not model: return text
     if not text.startswith('---\n'): raise InstallError('Rol dosyasında frontmatter bölümü yok.')
@@ -107,11 +122,32 @@ def generate_config(primary:str)->str:
     data={'$schema':'https://opencode.ai/config.json','default_agent':primary,'subagent_depth':1,'compaction':{'auto':True,'prune':True}}
     return json.dumps(data,ensure_ascii=False,indent=2)+'\n'
 
-def generate_scout_config(model:str)->str:
-    # OpenCode current runtime merges .opencode/opencode.json{,c} as a project config source.
-    # Keep this HHC-owned layer minimal so an existing root opencode.json(c) stays untouched.
-    data={'$schema':'https://opencode.ai/config.json','agent':{'scout':{'model':model}}}
+def generate_aux_config(scout_model:str|None, playwright_enabled:bool)->str:
+    # OpenCode project .opencode/opencode.json{,c} katmanını merge eder. HHC-owned yüzeyi minimal tut.
+    data={'$schema':'https://opencode.ai/config.json'}
+    if scout_model:
+        data['agent']={'scout':{'model':scout_model}}
+    if playwright_enabled:
+        data['permission']={'playwright_*':'deny'}
+        data['mcp']={'playwright':{'type':'local','command':['npx',f'@playwright/mcp@{PLAYWRIGHT_MCP_VERSION}'],'enabled':True}}
     return json.dumps(data,ensure_ascii=False,indent=2)+'\n'
+
+def validate_model_capabilities(models:dict[str,str], scout_model:str|None, metadata_file:Path|None)->list[dict]:
+    """Güvenilir metadata varsa açık zorunlu capability eksiklerini bloklar; UNKNOWN yalnız uyarıdır."""
+    from model_advisor import load_catalog, metadata_for, normalize, classify
+    catalog,source,error=load_catalog(metadata_file)
+    warnings=[]
+    if not catalog:
+        return [{'role':'*','model':None,'type':'metadata-unavailable','message':error or 'models.dev metadata kullanılamıyor'}]
+    checks=dict(models)
+    if scout_model: checks['scout']=scout_model
+    for role,model in checks.items():
+        result=classify(role,normalize(metadata_for(catalog,model)))
+        if result['classification']=='INCOMPATIBLE':
+            raise InstallError(f'{role} için {model} zorunlu capability eksik: '+', '.join(result['missing_required']))
+        if result['classification']=='WARNING':
+            warnings.append({'role':role,'model':model,'type':'unknown-capability','unknown_required':result['unknown_required'],'metadata_source':source})
+    return warnings
 
 def main()->int:
     ap=argparse.ArgumentParser(description='HHC AI Team Kit proje kurulumu')
@@ -124,6 +160,9 @@ def main()->int:
     ap.add_argument('--model',action='append',default=[],help='rol=sağlayıcı/model; tekrar edilebilir')
     ap.add_argument('--scout',choices=['enabled','disabled'],help='Native OpenCode Scout kullanımı; yeni kurulumda varsayılan disabled')
     ap.add_argument('--scout-model',help='Scout enabled ise native scout için sağlayıcı/model')
+    ap.add_argument('--playwright',choices=['enabled','disabled'],help='Yalnız web-development için opt-in Playwright MCP; varsayılan disabled')
+    ap.add_argument('--validate-model-capabilities',action='store_true',help='models.dev metadata ile açık zorunlu capability eksiklerini doğrula')
+    ap.add_argument('--model-metadata-file',type=Path,help='Test/offline doğrulama için models.dev api.json uyumlu metadata dosyası')
     ap.add_argument('--reconfigure',action='store_true',help='Mevcut HHC ekibini güvenli biçimde yeniden yapılandır')
     ap.add_argument('--force',action='store_true',help='Çakışan HHC hedef dosyalarının üzerine yaz')
     ap.add_argument('--dry-run',action='store_true')
@@ -137,6 +176,13 @@ def main()->int:
             scout_enabled=bool(previous.get('scout_enabled',False)) if (args.reconfigure and previous) else False
         else:
             scout_enabled=args.scout=='enabled'
+        if args.playwright is None:
+            playwright_enabled=(bool(previous.get('playwright_enabled',False)) if (args.reconfigure and previous and args.preset=='web-development') else False)
+        else:
+            playwright_enabled=args.playwright=='enabled'
+        if playwright_enabled and args.preset!='web-development':
+            raise InstallError('Playwright MCP yalnız web-development profilinde etkinleştirilebilir.')
+
         if scout_enabled:
             inherited_scout=(previous or {}).get('scout_model') if args.reconfigure else None
             scout_model=valid_model_id(args.scout_model or inherited_scout or '') if (args.scout_model or inherited_scout) else None
@@ -171,6 +217,8 @@ def main()->int:
             missing=set(models)-set(roles)
             if missing: raise InstallError('Seçili ekipte olmayan role model verildi: '+', '.join(sorted(missing)))
 
+        model_warnings=validate_model_capabilities(models,scout_model,args.model_metadata_file) if args.validate_model_capabilities else []
+
         model_policy='shared' if shared_model else ('per-role' if models else 'inherit')  # yalnız backward-compatible state; wizard bunu sormaz.
         skills=list(preset['skills']); commands=list(preset['commands'])
         prev_managed=set(previous.get('managed_files',[])) if previous else set()
@@ -181,6 +229,7 @@ def main()->int:
             role_text=inject_model(src.read_text(encoding='utf-8'),models.get(role))
             if role in ('manager','working-manager'):
                 role_text=inject_scout_policy(role_text,scout_enabled)
+            role_text=inject_playwright_policy(role_text,role=role,enabled=playwright_enabled)
             desired.append((src,dst,role_text))
         for skill in skills:
             srcdir=KIT/'skills'/skill
@@ -188,13 +237,13 @@ def main()->int:
                 if src.is_file(): desired.append((src,op/'skills'/skill/src.relative_to(srcdir),None))
         for command in commands:
             src=KIT/'commands'/f'{command}.md'; desired.append((src,op/'commands'/src.name,None))
-        if scout_enabled:
-            scout_cfg=project/SCOUT_CONFIG_REL
-            scout_text=generate_scout_config(scout_model)
-            scout_rel=rel(project,scout_cfg)
-            if scout_cfg.exists() and scout_rel not in prev_managed and not args.force:
-                raise InstallError('Scout modeli güvenle yazılamıyor: .opencode/opencode.jsonc kullanıcı tarafından yönetiliyor. Dosyayı korumak için kurulum durduruldu; Scout override alanını manuel birleştirin veya HHC-owned config kullanın.')
-            desired.append((KIT/'VERSION',scout_cfg,scout_text))
+        if scout_enabled or playwright_enabled:
+            aux_cfg=project/AUX_CONFIG_REL
+            aux_text=generate_aux_config(scout_model if scout_enabled else None,playwright_enabled)
+            aux_rel=rel(project,aux_cfg)
+            if aux_cfg.exists() and aux_rel not in prev_managed and not args.force:
+                raise InstallError('HHC native Scout/Playwright config katmanı güvenle yazılamıyor: .opencode/opencode.jsonc kullanıcı tarafından yönetiliyor. Dosyayı korumak için kurulum durduruldu.')
+            desired.append((KIT/'VERSION',aux_cfg,aux_text))
 
         desired_rel={rel(project,dst) for _,dst,_ in desired}
         if args.reconfigure:
@@ -228,7 +277,7 @@ def main()->int:
 
         state={'schema_version':1,'kit_version':(KIT/'VERSION').read_text().strip(),'team_mode':args.team_mode,
                'preset':args.preset,'manager_mode':manager_mode,'primary_agent':primary,'roles':roles,'skills':skills,'commands':commands,
-               'model_policy':model_policy,'shared_model':shared_model,'models':models,'scout_enabled':scout_enabled,'scout_model':scout_model,'managed_files':sorted(managed),
+               'model_policy':model_policy,'shared_model':shared_model,'models':models,'scout_enabled':scout_enabled,'scout_model':scout_model,'playwright_enabled':playwright_enabled,'model_warnings':model_warnings,'managed_files':sorted(managed),
                'config_created_by_hhc':cfg_created,'config_sha256':cfg_hash}
         if not args.dry_run:
             state_path=project/STATE_REL; state_path.parent.mkdir(parents=True,exist_ok=True)
@@ -236,7 +285,7 @@ def main()->int:
         config_result={'path':str(cfg),'action':cfg_action,'existed_before':cfg_existed_before,'managed_by_hhc':cfg_created,
                        'notice':('Mevcut opencode.jsonc korundu; HHC bu dosyadaki default_agent, subagent_depth veya compaction değerlerini değiştirmedi. Mevcut OpenCode yapılandırmanız geçerlidir.' if cfg_action=='preserved-existing-config' else None)}
         print(json.dumps({'status':'DRY_RUN' if args.dry_run else ('RECONFIGURED' if args.reconfigure else 'COMPLETE'),'project':str(project),
-                          **{k:state[k] for k in ('team_mode','preset','manager_mode','primary_agent','roles','skills','commands','model_policy','shared_model','models','scout_enabled','scout_model')},
+                          **{k:state[k] for k in ('team_mode','preset','manager_mode','primary_agent','roles','skills','commands','model_policy','shared_model','models','scout_enabled','scout_model','playwright_enabled','model_warnings')},
                           'config':config_result,'written':written,'removed':removed,'preserved_existing':list(dict.fromkeys(preserved))},ensure_ascii=False,indent=2))
         if preserved:print('NOT: HHC tarafından güvenle yönetilemeyen mevcut dosyalar korunmuştur.',file=sys.stderr)
         return 0

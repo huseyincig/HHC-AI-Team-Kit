@@ -743,3 +743,117 @@ def test_bootstrap_scout_opt_in_and_separate_model_documented():
     assert 'varsayılan' in install and 'Scout / Dış Araştırma' in install
     assert '--scout <enabled|disabled>' in install and '--scout-model provider/model' in install
     assert 'scout_enabled' in reconf and 'Scout / Dış Araştırma' in reconf
+
+# rc.19 SMART model selection + opt-in Playwright MCP
+
+def _models_dev_fixture(path: Path):
+    data={
+        'provider': {
+            'models': {
+                'good': {'tool_call':True,'reasoning':True,'attachment':True,'modalities':{'input':['text','image'],'output':['text']},'limit':{'context':256000,'output':32000},'cost':{'input':0.2,'output':0.8}},
+                'text-only': {'tool_call':True,'reasoning':True,'attachment':False,'modalities':{'input':['text'],'output':['text']},'limit':{'context':128000,'output':16000},'cost':{'input':0.1,'output':0.3}},
+                'no-tools': {'tool_call':False,'reasoning':True,'modalities':{'input':['text'],'output':['text']},'limit':{'context':128000,'output':16000}},
+                'unknown': {'reasoning':True,'limit':{'context':128000,'output':16000}}
+            }
+        }
+    }
+    path.write_text(json.dumps(data),encoding='utf-8')
+    return path
+
+
+def test_model_advisor_classifies_capabilities_and_cost(tmp_path):
+    meta=_models_dev_fixture(tmp_path/'models.json')
+    r=run(KIT/'scripts/model_advisor.py','--metadata-file',meta,'--role','visual-qa','--model','provider/good','--model','provider/text-only')
+    assert r.returncode==0, r.stderr
+    data=json.loads(r.stdout); rows={x['model']:x for x in data['roles']['visual-qa']}
+    assert rows['provider/good']['classification'] in {'RECOMMENDED','COMPATIBLE'}
+    assert rows['provider/good']['image_input'] is True and rows['provider/good']['cost_input']==0.2
+    assert rows['provider/text-only']['classification']=='INCOMPATIBLE'
+    assert 'image_input' in rows['provider/text-only']['missing_required']
+
+
+def test_model_capability_validation_blocks_explicit_missing_tool_call(tmp_path):
+    p=tmp_path/'app'; meta=_models_dev_fixture(tmp_path/'models.json')
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal','--model','working-manager=provider/no-tools','--validate-model-capabilities','--model-metadata-file',meta)
+    assert r.returncode!=0
+    assert 'tool_call' in r.stderr
+
+
+def test_model_capability_validation_unknown_warns_but_does_not_fail(tmp_path):
+    p=tmp_path/'app'; meta=_models_dev_fixture(tmp_path/'models.json')
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal','--model','working-manager=provider/unknown','--validate-model-capabilities','--model-metadata-file',meta)
+    assert r.returncode==0, r.stderr
+    data=json.loads(r.stdout)
+    assert data['model_warnings'] and data['model_warnings'][0]['type']=='unknown-capability'
+
+
+def test_visual_qa_validation_blocks_text_only_model(tmp_path):
+    p=tmp_path/'app'; meta=_models_dev_fixture(tmp_path/'models.json')
+    args=[KIT/'scripts/install.py','--project-path',p,'--preset','web-development','--model','visual-qa=provider/text-only','--validate-model-capabilities','--model-metadata-file',meta]
+    r=run(*args)
+    assert r.returncode!=0 and 'image_input' in r.stderr
+
+
+def test_web_playwright_opt_in_is_project_local_and_visual_qa_scoped(tmp_path):
+    p=tmp_path/'app'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','web-development','--playwright','enabled')
+    assert r.returncode==0, r.stderr
+    cfg=json.loads((p/'.opencode/opencode.jsonc').read_text(encoding='utf-8'))
+    assert cfg['mcp']['playwright']['type']=='local'
+    assert cfg['mcp']['playwright']['command']==['npx','@playwright/mcp@0.0.78']
+    assert cfg['permission']['playwright_*']=='deny'
+    visual=(p/'.opencode/agents/visual-qa.md').read_text(encoding='utf-8')
+    manager=(p/'.opencode/agents/working-manager.md').read_text(encoding='utf-8')
+    assert '"playwright_*": allow' in visual
+    assert '"playwright_*": allow' not in manager
+    state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
+    assert state['playwright_enabled'] is True
+
+
+def test_playwright_default_disabled_and_non_web_cannot_enable(tmp_path):
+    p=tmp_path/'web'
+    assert run(KIT/'scripts/install.py','--project-path',p,'--preset','web-development').returncode==0
+    assert not (p/'.opencode/opencode.jsonc').exists()
+    p2=tmp_path/'desktop'
+    r=run(KIT/'scripts/install.py','--project-path',p2,'--preset','desktop-development','--playwright','enabled')
+    assert r.returncode!=0
+
+
+def test_playwright_reconfigure_disable_preserves_root_user_mcp(tmp_path):
+    p=tmp_path/'app'; p.mkdir()
+    root_cfg=p/'opencode.jsonc'; root_cfg.write_text('{"mcp":{"user-tool":{"type":"remote","url":"https://example.invalid/mcp"}}}',encoding='utf-8')
+    assert run(KIT/'scripts/install.py','--project-path',p,'--preset','web-development','--playwright','enabled').returncode==0
+    assert (p/'.opencode/opencode.jsonc').exists()
+    r=run(KIT/'scripts/install.py','--project-path',p,'--reconfigure','--preset','web-development','--playwright','disabled')
+    assert r.returncode==0, r.stderr
+    assert not (p/'.opencode/opencode.jsonc').exists()
+    assert 'user-tool' in root_cfg.read_text(encoding='utf-8')
+
+
+def test_playwright_and_scout_share_minimal_hhc_owned_aux_config(tmp_path):
+    p=tmp_path/'app'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','web-development','--scout','enabled','--scout-model','provider/research','--playwright','enabled')
+    assert r.returncode==0, r.stderr
+    cfg=json.loads((p/'.opencode/opencode.jsonc').read_text(encoding='utf-8'))
+    assert cfg['agent']['scout']['model']=='provider/research'
+    assert 'playwright' in cfg['mcp']
+    assert not (KIT/'roles/scout.md').exists()
+
+
+def test_model_advisor_metadata_unavailable_is_nonfatal(tmp_path):
+    missing=tmp_path/'missing.json'
+    r=run(KIT/'scripts/model_advisor.py','--metadata-file',missing,'--role','manager','--model','provider/x')
+    assert r.returncode==0, r.stderr
+    data=json.loads(r.stdout)
+    assert data['metadata_available'] is False
+    row=data['roles']['manager'][0]
+    assert row['classification']=='WARNING' and row['tool_call'] is None
+
+
+def test_model_advisor_never_invents_missing_cost(tmp_path):
+    meta=tmp_path/'models.json'
+    meta.write_text(json.dumps({'provider':{'models':{'x':{'tool_call':True,'reasoning':True,'modalities':{'input':['text'],'output':['text']},'limit':{'context':128000,'output':16000}}}}}),encoding='utf-8')
+    r=run(KIT/'scripts/model_advisor.py','--metadata-file',meta,'--role','manager','--model','provider/x')
+    assert r.returncode==0
+    row=json.loads(r.stdout)['roles']['manager'][0]
+    assert row['cost_input'] is None and row['cost_output'] is None
