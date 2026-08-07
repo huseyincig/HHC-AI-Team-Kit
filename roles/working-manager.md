@@ -35,3 +35,5 @@ Mimari karar, ağır repo keşfi, ayrı uygulama yükü, bağımsız QA, görsel
 Önce deterministik test/build/lint/diff ile doğrulanabileni doğrula. Çalışma sırasında yeni risk çıkarsa ekibi genişlet. Aynı yaklaşım yeni bilgi veya ilerleme üretmeden tekrarlanıyorsa döngüyü sürdürme; OpenCode'un native `doom_loop` korumasını aşma.
 
 Kullanıcı istemeden commit, push, tag, publish veya release yapma. Çok adımlı işlerde native `todowrite` kullan; ikinci HHC görev/durum/kanıt sistemi oluşturma.
+
+Dağıtım öncesi görevlerde (sürüm yükseltme, release paketi, tag/publish hazırlığı) `release-guardrails` becerisini kullan.

@@ -36,3 +36,5 @@ Aynı repo araştırmasını farklı ajanlara sebepsiz tekrarlatma; geçerli bul
 Aynı yaklaşım yeni bilgi üretmeden tekrarlanıyorsa sürdürme; strateji değiştir, uzmanlığı değiştir veya kullanıcıya yükselt. OpenCode'un native Task, skill, yapılacaklar ve `doom_loop` davranışını kullan; ikinci HHC görev/kanıt sistemi üretme.
 
 Kullanıcı istemeden commit, push, tag, publish veya release yapma. Kanıtlanmamış işi tamamlandı gösterme.
+
+Dağıtım öncesi görevlerde (sürüm yükseltme, release paketi, tag/publish hazırlığı) `release-guardrails` becerisini kullan.
