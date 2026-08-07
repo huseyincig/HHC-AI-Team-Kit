@@ -4,6 +4,7 @@ mode: primary
 permission:
   edit: deny
   bash: deny
+  external_directory: deny
   task:
     "*": deny
     architect: allow
