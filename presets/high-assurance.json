@@ -1,0 +1,12 @@
+{
+  "name": "high-assurance",
+  "kit_version": "1.1.0-rc.19",
+  "extends": "standard",
+  "roles": [
+    "security-reviewer"
+  ],
+  "skills": [
+    "security-review",
+    "release-guardrails"
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "name": "standard",
+  "kit_version": "1.1.0-rc.19",
+  "roles": [
+    "manager",
+    "architect",
+    "repository-explorer",
+    "coder",
+    "qa-reviewer",
+    "visual-qa"
+  ],
+  "skills": [
+    "task-classification",
+    "repository-analysis",
+    "implementation-planning",
+    "safe-refactoring",
+    "code-review",
+    "test-strategy",
+    "regression-review",
+    "visual-qa",
+    "release-guardrails",
+    "changelog-and-documentation"
+  ],
+  "commands": [
+    "team-status",
+    "team-review"
+  ]
+}

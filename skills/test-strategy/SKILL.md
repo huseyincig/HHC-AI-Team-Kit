@@ -1,0 +1,17 @@
+---
+name: test-strategy
+description: Değişiklik sınıfına göre en küçük yeterli ve tekrarlanabilir deterministik doğrulama setini seçmek için kullanılır.
+---
+
+# Test Stratejisi
+
+Önce değişikliği doğrudan kanıtlayan en dar deterministik kontrolü seç; başarısızlık veya etki alanı gerektirirse kapsamı genişlet.
+
+- Hata düzeltmesi: yeniden üretim/regresyon testi + ilgili mevcut testler.
+- Yeni davranış: hedef test + etkilenmiş entegrasyon.
+- Yeniden düzenleme: davranışı koruyan mevcut testler.
+- Arayüz: fonksiyonel kontrol + gerçekten gerekiyorsa responsive/tarayıcı doğrulaması.
+- Güvenlik: ilgili pozitif/negatif senaryolar.
+- Kurulum: temiz kurulum + tekrar kurulum.
+
+Çalıştırılmayan testi `PASS` sayma. Aynı şeyi ikinci LLM görüşüyle tekrar doğrulatma.
