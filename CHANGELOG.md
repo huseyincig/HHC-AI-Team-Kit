@@ -43,8 +43,6 @@
 - Custom profil capability fallback davranışı netleştirildi.
 - Eski rc.16 solo state için güvenli reconfigure migration yolu korundu.
 
-# Değişiklik Günlüğü
-
 ## 1.1.0-rc.16
 
 - Model keşfinde `opencode models` resmî birincil kaynak olarak açıkça ayrıldı; yerel cache yolları `UNDOCUMENTED / BEST-EFFORT FALLBACK` olarak işaretlendi.
@@ -77,6 +75,16 @@
 - Yeniden yapılandırmada eski profilden kalan HHC dosyaları temizlenir; kullanıcı dosyaları korunur.
 - Durum dosyası olmayan önceki HHC kurulumlarındaki birebir aynı kit dosyaları güvenli biçimde benimsenebilir.
 
+## 1.1.0-rc.13
+
+- Model keşfi tek `opencode models` çağrısına bağımlı olmaktan çıkarıldı.
+- `~/.cache/opencode/models.json` ve `~/.cache/opencode.json` (Windows eşdeğerleri dahil) salt-okunur fallback olarak eklendi.
+- Model keşfi başarısız olduğunda otomatik tekrar döngüsü yasaklandı.
+- Sabit profil seçildikten sonra gereksiz rol sorusu kaldırıldı.
+- Yeni `custom` profil eklendi; rol seçimi yalnız bu profilde yapılır.
+- `/hhc-reconfigure` içinde roller ayrı ana menü maddesi olmaktan çıkarıldı; profil `custom` olduğunda yönetilir.
+- Tek model / rol bazlı model akışlarının backend argüman kuralları netleştirildi.
+
 ## 1.1.0-rc.12
 
 - `/hhc-install` sessiz Standard kurulum yerine etkileşimli kurulum asistanına dönüştürüldü.
@@ -95,13 +103,3 @@
 - Özel HHC görev/kanıt runtime'ı, schema katmanı, özel araç sarmalayıcıları ve Node/Zod bağımlılığı kaldırıldı.
 - Kurucu yalnız ajan/beceri/komut dosyalarını ve gerektiğinde `opencode.jsonc` dosyasını üretir.
 - MCP profilleri kaldırıldı; MCP yapılandırması OpenCode'un yerleşik yapılandırmasına bırakıldı.
-
-## 1.1.0-rc.14
-
-- Model keşfi tek `opencode models` çağrısına bağımlı olmaktan çıkarıldı.
-- `~/.cache/opencode/models.json` ve `~/.cache/opencode.json` (Windows eşdeğerleri dahil) salt-okunur fallback olarak eklendi.
-- Model keşfi başarısız olduğunda otomatik tekrar döngüsü yasaklandı.
-- Sabit profil seçildikten sonra gereksiz rol sorusu kaldırıldı.
-- Yeni `custom` profil eklendi; rol seçimi yalnız bu profilde yapılır.
-- `/hhc-reconfigure` içinde roller ayrı ana menü maddesi olmaktan çıkarıldı; profil `custom` olduğunda yönetilir.
-- Tek model / rol bazlı model akışlarının backend argüman kuralları netleştirildi.
