@@ -4,12 +4,18 @@ from __future__ import annotations
 import argparse, os, shutil, sys
 from pathlib import Path
 KIT=Path(__file__).resolve().parents[1]
+MIN_PYTHON = (3, 9)
 
 def runtime_root()->Path:
     if os.name=='nt': return Path(os.environ.get('LOCALAPPDATA',Path.home()/'AppData/Local'))/'HHC-AI-Team-Kit'/'current'
     return Path(os.environ.get('XDG_DATA_HOME',Path.home()/'.local/share'))/'hhc-ai-team-kit'/'current'
 def opencode_root()->Path:
     return Path(os.environ.get('XDG_CONFIG_HOME',Path.home()/'.config'))/'opencode'
+def check_python_version(vi=sys.version_info) -> None:
+    """Python minimum sürümünü kontrol eder. Eksikse RuntimeError raise eder."""
+    cur = (vi.major, vi.minor)
+    if cur < MIN_PYTHON:
+        raise RuntimeError(f'Python {MIN_PYTHON[0]}.{MIN_PYTHON[1]}+ gerekli, mevcut {cur[0]}.{cur[1]}.')
 def copy_runtime(dst:Path):
     if dst.exists(): shutil.rmtree(dst)
     dst.parent.mkdir(parents=True,exist_ok=True)
@@ -26,6 +32,11 @@ def install_bootstrap(dst:Path):
     for p in target.rglob('*'):
         if p.is_file(): p.write_text(p.read_text(encoding='utf-8').replace('{{KIT_ROOT}}',str(dst)).replace('{{PYTHON}}',str(py)),encoding='utf-8',newline='')
 def main()->int:
+    try:
+        check_python_version()
+    except RuntimeError as e:
+        print(f'HHC-INSTALL-001: {e}', file=sys.stderr)
+        return 2
     ap=argparse.ArgumentParser(); ap.add_argument('--install',action='store_true'); args=ap.parse_args()
     if not args.install: ap.error('--install gerekli')
     dst=runtime_root(); copy_runtime(dst); install_bootstrap(dst)

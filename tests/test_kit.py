@@ -573,3 +573,23 @@ def test_symlink_project_root_rejected(tmp_path):
         pytest.skip('symlink not available on this platform/permission')
     r=run(KIT/'scripts/install.py','--project-path',link,'--preset','minimal')
     assert r.returncode!=0, f'unexpected success; stderr={r.stderr}'
+
+
+def test_python_version_check_rejects_below_minimum():
+    import types
+    scripts = str(KIT/'scripts')
+    sys.path.insert(0, scripts)
+    try:
+        from install_global import check_python_version, MIN_PYTHON
+        # Eski sürüm -> raise
+        old = types.SimpleNamespace(major=3, minor=8)
+        with pytest.raises(RuntimeError):
+            check_python_version(old)
+        # Tam minimum -> ok
+        min_ok = types.SimpleNamespace(major=MIN_PYTHON[0], minor=MIN_PYTHON[1])
+        check_python_version(min_ok)  # raise yok
+        # Yeni sürüm -> ok
+        new = types.SimpleNamespace(major=3, minor=12)
+        check_python_version(new)
+    finally:
+        sys.path.remove(scripts)
