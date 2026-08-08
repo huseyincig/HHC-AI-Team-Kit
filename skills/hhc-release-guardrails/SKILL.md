@@ -1,5 +1,5 @@
 ---
-name: release-guardrails
+name: hhc-release-guardrails
 description: Sürüm öncesi sürüm bilgisi, test, değişiklik farkı ve kullanıcı onayı kapılarını kontrol etmek için kullanılır.
 ---
 

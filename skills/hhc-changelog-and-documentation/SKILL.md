@@ -1,5 +1,5 @@
 ---
-name: changelog-and-documentation
+name: hhc-changelog-and-documentation
 description: Davranış değişikliğinde kullanıcı belgeleri ve değişiklik günlüğü tutarlılığını kontrol etmek için kullanılır.
 ---
 

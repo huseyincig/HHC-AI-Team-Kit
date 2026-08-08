@@ -1,5 +1,5 @@
 ---
-name: implementation-planning
+name: hhc-implementation-planning
 description: Gerçek mimari veya çok dosyalı bağımlı değişikliklerde en küçük uygulanabilir planı hazırlamak için kullanılır.
 ---
 

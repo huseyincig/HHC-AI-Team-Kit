@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""HHC model capability/maliyet danışmanı.
+"""HHC model yeteneği/maliyet danışmanı.
 
-OpenCode model keşfini değiştirmez. models.dev metadata erişilebilirse seçim aşamasında
-rol uyumluluğu ve maliyet/context bilgisi üretir; erişilemezse UNKNOWN ile güvenli şekilde
-devam eder. Runtime model router değildir.
+OpenCode model keşfini değiştirmez. models.dev üst verisi erişilebilirse seçim aşamasında
+rol uyumluluğu ve maliyet/bağlam bilgisi üretir; erişilemezse UNKNOWN ile güvenli şekilde
+devam eder. Çalışma zamanı model yönlendiricisi değildir.
 """
 from __future__ import annotations
 import argparse, json, os, urllib.request
@@ -86,6 +86,7 @@ def classify(role:str, norm:dict)->dict:
         if value is False: missing.append(cap)
         elif value is None: unknown.append(cap)
     if missing: level='INCOMPATIBLE'
+    elif norm.get('status')=='deprecated': level='WARNING'
     elif unknown or not norm.get('known'): level='WARNING'
     else:
         preferred_hits=0
@@ -121,7 +122,7 @@ def advise(models:list[str],roles:list[str],catalog:dict)->dict:
 
 
 def main()->int:
-    ap=argparse.ArgumentParser(description='HHC role-model capability ve maliyet danışmanı')
+    ap=argparse.ArgumentParser(description='HHC rol-model yeteneği ve maliyet danışmanı')
     ap.add_argument('--project-path',type=Path,default=Path('.'))
     ap.add_argument('--role',action='append',default=[])
     ap.add_argument('--model',action='append',default=[])
@@ -137,7 +138,7 @@ def main()->int:
     catalog,source,error=load_catalog(args.metadata_file)
     result={'ok':bool(models),'models':models,'model_source':discovered.get('source'),'metadata_source':source,
             'metadata_available':bool(catalog),'metadata_error':error,'roles':advise(models,roles,catalog),
-            'notice':('models.dev metadata alınamadı; model seçimi engellenmez, capability bilgisi UNKNOWN/WARNING kabul edilir.' if not catalog else None)}
+            'notice':('models.dev üst verisi alınamadı; model seçimi engellenmez, yetenek bilgisi UNKNOWN/WARNING kabul edilir.' if not catalog else None)}
     print(json.dumps(result,ensure_ascii=False,indent=2)); return 0
 
 if __name__=='__main__': raise SystemExit(main())

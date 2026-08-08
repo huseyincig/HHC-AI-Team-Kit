@@ -1,5 +1,5 @@
 ---
-name: safe-refactoring
+name: hhc-safe-refactoring
 description: Davranışı koruyan yeniden düzenlemelerde kapsamı dar tutmak ve regresyon riskini azaltmak için kullanılır.
 ---
 

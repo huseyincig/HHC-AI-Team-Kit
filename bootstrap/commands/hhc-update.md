@@ -19,4 +19,4 @@ description: HHC proje dosyalarını ve global kit'i otomatik güncelle
    - `UPDATED` → "Güncellendi: x.x.x → y.y.y" + `written` / `removed` özeti (kaç dosya yazıldı, kaçı kaldırıldı).
 6. `config.action` == `preserved-existing-config` ise mevcut `opencode.jsonc` korunduğunu bildir (HHC config varsayılanlarını değiştirmedi).
 7. Hata alınırsa → "Güncelleme başarısız. `/hhc-reconfigure` ile yeniden yapılandırmayı deneyin." öner.
-8. Son not: Global kit `/hhc-update` ile otomatik güncellenir (GitHub releases). `--no-remote` ile yalnız yerel senkron. Network yoksa yerel senkron yine de çalışır. Proje dosyaları her zaman `/hhc-update` ile güncel tutulur.
+8. Son not: Global kit `/hhc-update` ile otomatik güncellenir (GitHub releases). `--no-remote` ile yalnız yerel senkron. Network yoksa yerel senkron yine de çalışır. Proje dosyaları `/hhc-update` ile senkronlanır; kullanıcı tarafından yönetilen çakışmalar veya doğrulama hataları varsa korunur/raporlanır ve sahte güncellik iddiası yapılmaz.

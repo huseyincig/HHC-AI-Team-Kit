@@ -191,16 +191,16 @@ def test_model_discovery_empty_does_not_fail_or_loop(tmp_path, monkeypatch):
 
 
 def test_adaptive_routing_skill_is_installed_and_lightweight(tmp_path):
-    skill=(KIT/'skills/task-classification/SKILL.md').read_text(encoding='utf-8')
-    assert 'Minimum routing' in skill
+    skill=(KIT/'skills/hhc-task-classification/SKILL.md').read_text(encoding='utf-8')
+    assert 'Minimum yönlendirme' in skill
     assert 'Çalışma profili' in skill and 'ajan kadrosu değildir' in skill
     assert 'Kararı değiştirmeyecek bilinmeyeni araştırma' in skill
-    assert 'Context taşıma; referans taşı' in skill
+    assert 'Bağlam taşıma; referans taşı' in skill
     assert len(skill.encode('utf-8')) < 7000
     p=tmp_path/'app'
     r=run(KIT/'scripts/install.py','--project-path',p,'--preset','basic')
     assert r.returncode==0, r.stderr
-    assert (p/'.opencode/skills/task-classification/SKILL.md').is_file()
+    assert (p/'.opencode/skills/hhc-task-classification/SKILL.md').is_file()
 
 def test_manager_uses_minimum_team_not_fixed_pipeline():
     for name in ('manager','working-manager'):
@@ -208,12 +208,12 @@ def test_manager_uses_minimum_team_not_fixed_pipeline():
         low=text.lower()
         assert 'minimum' in low
         assert 'ihtiyaç' in low and 'genişlet' in low
-        assert 'task-classification' in text
+        assert 'hhc-task-classification' in text
         assert 'profil' in low
         assert ('kadro' in low or 'bütün uzmanları' in low or 'sabit pipeline' in low)
 
 def test_small_tasks_do_not_force_specialists():
-    text=(KIT/'skills/task-classification/SKILL.md').read_text(encoding='utf-8')
+    text=(KIT/'skills/hhc-task-classification/SKILL.md').read_text(encoding='utf-8')
     assert 'typo' in text.lower() or 'deterministik küçük değişiklik' in text.lower()
     assert 'zorunlu değildir' in text
     manager=(KIT/'roles/working-manager.md').read_text(encoding='utf-8')
@@ -226,7 +226,7 @@ def test_security_and_visual_triggers_are_conditional():
     assert 'gerçekten etkileniyorsa' in sec
     assert 'güvenlik sınırı yoksa' in sec
     assert 'gerçekten değiştiyse' in vis
-    assert 'Backend-only' in vis
+    assert 'Yalnız arka uç' in vis
 
 
 def test_repository_handoff_is_reference_first():
@@ -244,7 +244,7 @@ def test_qa_starts_from_diff_and_does_not_repeat_repository_scan():
 
 
 def test_loop_breaker_is_progress_based_and_native():
-    skill=(KIT/'skills/task-classification/SKILL.md').read_text(encoding='utf-8')
+    skill=(KIT/'skills/hhc-task-classification/SKILL.md').read_text(encoding='utf-8')
     assert 'yeni bilgi veya gerçek ilerleme' in skill
     assert 'doom_loop' in skill
     assert 'maksimum 2 retry' not in skill.lower()
@@ -267,7 +267,7 @@ def test_profiles_are_policy_only_and_share_capability_pool():
     data=[json.loads((KIT/f'presets/{name}.json').read_text(encoding='utf-8')) for name in names]
     assert {p.stem for p in (KIT/'presets').glob('*.json')}==set(names)
     for d in data:
-        assert 'task-classification' in d['skills']
+        assert 'hhc-task-classification' in d['skills']
         assert {'manager','architect','repository-explorer','coder','qa-reviewer','visual-qa','security-reviewer'} <= set(d['roles'])
         assert len(d['skills'])==13
         assert set(d['policy'])=={'specialist_threshold','parallelism','independent_review','priority'}
@@ -279,7 +279,7 @@ def test_legacy_solo_agent_is_not_shipped_and_team_mode_is_not_main_ux():
     wizard=(KIT/'bootstrap/commands/hhc-install.md').read_text(encoding='utf-8')
     assert 'Tek Ana Ajan / Çoklu Ajan' in wizard
     assert 'normal kullanıcıya SORMA' in wizard
-    assert 'legacy `--team-mode single`' in wizard or 'legacy `single|multi`' in wizard
+    assert 'eski `--team-mode single`' in wizard or 'eski `single|multi`' in wizard
 
 def test_prompt_budget_does_not_explode():
     role_bytes=sum(f.stat().st_size for f in (KIT/'roles').glob('*.md'))
@@ -334,7 +334,7 @@ def test_model_discovery_cache_is_marked_best_effort(tmp_path, monkeypatch):
     assert data['source']=='configured-fallback'
     assert data['source_kind']=='best-effort-config-cache'
     assert data['documented'] is False and data['best_effort'] is True
-    assert 'UNDOCUMENTED'.lower() in data['notice'].lower() or 'best-effort' in data['notice'].lower()
+    assert 'yedek kaynak' in data['notice'] and 'BELGELENMEM' in data['notice']
 
 
 def test_model_discovery_refresh_is_explicit_only(tmp_path, monkeypatch):
@@ -374,14 +374,14 @@ def test_new_config_uses_native_minimum_without_reserved(tmp_path):
 def test_manager_keeps_specialists_available_but_routes_conditionally():
     text=(KIT/'roles/manager.md').read_text(encoding='utf-8')
     assert 'çağrılabilir' in text
-    assert 'Çalışma profilini sabit pipeline veya rol kadrosu olarak yorumlama' in text
+    assert 'Çalışma profilini sabit işlem hattı veya rol kadrosu olarak yorumlama' in text
     for role in ('architect','repository-explorer','coder','qa-reviewer','visual-qa','security-reviewer'):
         assert f'{role}: allow' in text
 
 def test_lsp_is_native_deterministic_validation_not_new_framework():
     coder=(KIT/'roles/coder.md').read_text(encoding='utf-8')
     qa=(KIT/'roles/qa-reviewer.md').read_text(encoding='utf-8')
-    cls=(KIT/'skills/task-classification/SKILL.md').read_text(encoding='utf-8')
+    cls=(KIT/'skills/hhc-task-classification/SKILL.md').read_text(encoding='utf-8')
     assert 'OpenCode LSP' in coder and 'OpenCode LSP' in qa
     assert 'LSP diagnostic' in cls
     forbidden=('lsp-wrapper.py','lsp-runtime.py','diagnostic-framework.py')
@@ -393,7 +393,7 @@ def test_global_wizard_documents_refresh_and_best_effort(tmp_path, monkeypatch):
     monkeypatch.setenv('XDG_DATA_HOME',str(tmp_path/'data'))
     r=run(KIT/'scripts/install_global.py','--install'); assert r.returncode==0, r.stderr
     text=(tmp_path/'config/opencode/commands/hhc-install.md').read_text(encoding='utf-8')
-    assert 'UNDOCUMENTED / BEST-EFFORT' in text
+    assert 'BELGELENMEMİŞ / EN İYİ ÇABA' in text
     assert 'model_discovery.py' in text and '--refresh' in text
     assert 'otomatik çalıştırılmamalı' in text
 
@@ -439,7 +439,7 @@ def test_reconfigure_uses_same_new_decision_tree():
     text=(KIT/'bootstrap/commands/hhc-reconfigure.md').read_text(encoding='utf-8')
     assert 'aynı karar ağacını' in text
     assert 'Basic / Standard / Powerful' in text
-    assert 'Legacy profile' in text or 'Legacy' in text
+    assert 'Eski profil' in text or 'Eski' in text
 
 def test_rc17_single_reconfigure_migrates_legacy_solo_owned_file(tmp_path):
     p=tmp_path/'app'
@@ -613,7 +613,8 @@ def test_native_scout_routing_is_explicit_and_readonly_external_only(tmp_path):
     for role in ('manager','working-manager'):
         text=(KIT/f'roles/{role}.md').read_text(encoding='utf-8')
         assert 'scout: allow' in text
-        assert 'Harici dokümantasyon' in text and 'upstream implementasyon' in text
+        assert '`websearch` + `webfetch`' in text
+        assert 'native `scout`' in text
         assert '`repository-explorer` alanında tut' in text
         assert 'bugünün verileriyle, gerçek ve güncel kaynaklara dayanarak' in text
         assert 'resmî/birincil kaynağı öncelemesini' in text
@@ -628,25 +629,26 @@ def test_native_scout_routing_is_explicit_and_readonly_external_only(tmp_path):
 def test_background_parallelism_is_stable_but_dependency_guarded():
     for role in ('manager','working-manager'):
         text=(KIT/f'roles/{role}.md').read_text(encoding='utf-8')
-        assert 'Task `background` akışıyla' in text
-        assert 'Background işi poll etme' in text
+        assert 'arka planda' in text
+        assert 'sürekli durum sorgulama/polling yapma' in text
         assert 'Bağımlı işler' in text and 'sıralı kalır' in text
-        assert 'seçeneğini gerçekten sunuyorsa' not in text
+        assert 'seçeneğini gerçekten sunuyorsa' in text
 
 def test_command_context_isolation_is_only_on_heavy_review():
-    review=(KIT/'commands/team-review.md').read_text(encoding='utf-8')
-    status=(KIT/'commands/team-status.md').read_text(encoding='utf-8')
+    review=(KIT/'commands/hhc-team-review.md').read_text(encoding='utf-8')
+    status=(KIT/'commands/hhc-team-status.md').read_text(encoding='utf-8')
     assert 'agent: qa-reviewer' in review
     assert 'subtask: true' in review
     assert 'subtask: true' not in status
 
 
-def test_scout_remains_native_but_has_opt_in_model_surface():
+def test_scout_remains_native_only_and_does_not_create_hhc_agent():
     assert not (KIT/'roles/scout.md').exists()
     assert not (KIT/'skills/scout').exists()
     install=(KIT/'scripts/install.py').read_text(encoding='utf-8')
     assert "PRIMARY_ROLES={'manager','working-manager','solo-agent'}" in install
-    assert '--scout-model' in install and "choices=['enabled','disabled']" in install
+    assert "choices=['enabled','disabled']" in install
+    assert "data['agent']={'scout'" not in install
 
 
 def test_scout_disabled_by_default_has_no_override_and_denies_task(tmp_path):
@@ -656,86 +658,62 @@ def test_scout_disabled_by_default_has_no_override_and_denies_task(tmp_path):
     assert not (p/'.opencode/opencode.jsonc').exists()
     manager=(p/'.opencode/agents/working-manager.md').read_text(encoding='utf-8')
     assert 'scout: deny' in manager and 'scout: allow' not in manager
-    state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
-    assert state['scout_enabled'] is False and state['scout_model'] is None
+    state=_state(p)
+    assert state['scout_enabled'] is False and state['scout_model'] is None and state['scout_model_mode'] is None
 
 
-def test_scout_enabled_writes_independent_native_model_override(tmp_path):
+def test_scout_enabled_only_allows_runtime_native_surface(tmp_path):
     p=tmp_path/'app'
-    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal',
-          '--model','working-manager=provider/expensive','--model','coder=provider/coder','--model','qa-reviewer=provider/qa',
-          '--scout','enabled','--scout-model','provider/cheap-research')
-    assert r.returncode==0, r.stderr
-    cfg=json.loads((p/'.opencode/opencode.jsonc').read_text(encoding='utf-8'))
-    assert cfg['agent']['scout']['model']=='provider/cheap-research'
-    assert cfg['agent']['scout']['model']!='provider/expensive'
-    manager=(p/'.opencode/agents/working-manager.md').read_text(encoding='utf-8')
-    assert 'model: provider/expensive' in manager and 'scout: allow' in manager
-    state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
-    assert state['scout_enabled'] is True and state['scout_model']=='provider/cheap-research'
-
-
-def test_scout_enabled_requires_explicit_model(tmp_path):
-    p=tmp_path/'app'
-    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal','--scout','enabled')
-    assert r.returncode!=0
-    assert 'scout-model' in r.stderr.lower()
-
-
-def test_scout_model_rejected_when_disabled(tmp_path):
-    p=tmp_path/'app'
-    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal','--scout','disabled','--scout-model','provider/x')
-    assert r.returncode!=0
-
-
-def test_scout_reconfigure_enable_change_disable_preserves_other_models(tmp_path):
-    p=tmp_path/'app'
-    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal',
-          '--model','working-manager=provider/mgr','--model','coder=provider/coder','--model','qa-reviewer=provider/qa','--scout','disabled')
-    assert r.returncode==0, r.stderr
-    r=run(KIT/'scripts/install.py','--project-path',p,'--reconfigure','--preset','minimal',
-          '--model','working-manager=provider/mgr','--model','coder=provider/coder','--model','qa-reviewer=provider/qa',
-          '--scout','enabled','--scout-model','provider/research-1')
-    assert r.returncode==0, r.stderr
-    assert json.loads((p/'.opencode/opencode.jsonc').read_text(encoding='utf-8'))['agent']['scout']['model']=='provider/research-1'
-    r=run(KIT/'scripts/install.py','--project-path',p,'--reconfigure','--preset','minimal',
-          '--model','working-manager=provider/mgr','--model','coder=provider/coder','--model','qa-reviewer=provider/qa',
-          '--scout','enabled','--scout-model','provider/research-2')
-    assert r.returncode==0, r.stderr
-    assert json.loads((p/'.opencode/opencode.jsonc').read_text(encoding='utf-8'))['agent']['scout']['model']=='provider/research-2'
-    assert 'model: provider/coder' in (p/'.opencode/agents/coder.md').read_text(encoding='utf-8')
-    r=run(KIT/'scripts/install.py','--project-path',p,'--reconfigure','--preset','minimal',
-          '--model','working-manager=provider/mgr','--model','coder=provider/coder','--model','qa-reviewer=provider/qa','--scout','disabled')
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','standard','--scout','enabled')
     assert r.returncode==0, r.stderr
     assert not (p/'.opencode/opencode.jsonc').exists()
+    manager=(p/'.opencode/agents/working-manager.md').read_text(encoding='utf-8')
+    assert 'scout: allow' in manager
+    state=_state(p)
+    assert state['scout_enabled'] is True
+    assert state['scout_model'] is None
+    assert state['scout_model_mode']=='runtime-native'
+
+
+def test_scout_model_override_is_rejected_to_avoid_custom_agent_creation(tmp_path):
+    p=tmp_path/'app'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','standard','--scout','enabled','--scout-model','provider/research')
+    assert r.returncode!=0
+    assert 'custom agent' in r.stderr.lower()
+
+
+def test_scout_reconfigure_enable_disable_preserves_other_models(tmp_path):
+    p=tmp_path/'app'
+    base=['--model','working-manager=provider/mgr','--model','coder=provider/coder','--model','qa-reviewer=provider/qa']
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal',*base,'--scout','disabled')
+    assert r.returncode==0, r.stderr
+    r=run(KIT/'scripts/install.py','--project-path',p,'--reconfigure','--preset','minimal',*base,'--scout','enabled')
+    assert r.returncode==0, r.stderr
+    assert _state(p)['scout_model_mode']=='runtime-native'
+    assert 'scout: allow' in (p/'.opencode/agents/working-manager.md').read_text(encoding='utf-8')
+    assert 'model: provider/coder' in (p/'.opencode/agents/coder.md').read_text(encoding='utf-8')
+    r=run(KIT/'scripts/install.py','--project-path',p,'--reconfigure','--preset','minimal',*base,'--scout','disabled')
+    assert r.returncode==0, r.stderr
     assert 'scout: deny' in (p/'.opencode/agents/working-manager.md').read_text(encoding='utf-8')
 
 
-def test_scout_layer_preserves_existing_root_config(tmp_path):
+def test_scout_does_not_need_or_modify_aux_config(tmp_path):
     p=tmp_path/'app'; p.mkdir()
-    root=p/'opencode.jsonc'; root.write_text('{\n  // user config\n  "model": "provider/user",\n  "mcp": {"custom": {"enabled": false}}\n}\n',encoding='utf-8')
+    root=p/'opencode.jsonc'; root.write_text('{\n  // user config\n  "model": "provider/user"\n}\n',encoding='utf-8')
     before=root.read_text(encoding='utf-8')
-    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal','--scout','enabled','--scout-model','provider/research')
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal','--scout','enabled')
     assert r.returncode==0, r.stderr
     assert root.read_text(encoding='utf-8')==before
-    assert json.loads((p/'.opencode/opencode.jsonc').read_text(encoding='utf-8'))['agent']['scout']['model']=='provider/research'
+    assert not (p/'.opencode/opencode.jsonc').exists()
 
 
-def test_scout_layer_refuses_to_overwrite_user_dot_opencode_config(tmp_path):
-    p=tmp_path/'app'; target=p/'.opencode/opencode.jsonc'; target.parent.mkdir(parents=True)
-    target.write_text('{"agent":{"other":{"model":"provider/user"}}}',encoding='utf-8')
-    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal','--scout','enabled','--scout-model','provider/research')
-    assert r.returncode!=0
-    assert target.read_text(encoding='utf-8')=='{"agent":{"other":{"model":"provider/user"}}}'
-
-
-def test_bootstrap_scout_opt_in_and_separate_model_documented():
+def test_bootstrap_scout_opt_in_is_runtime_native_documented():
     install=(KIT/'bootstrap/commands/hhc-install.md').read_text(encoding='utf-8')
     reconf=(KIT/'bootstrap/commands/hhc-reconfigure.md').read_text(encoding='utf-8')
-    assert 'Scout — proje bazında opt-in' in install
-    assert 'profile bağlı değildir' in install
-    assert 'Scout modeli' in install and 'ayrıca' in install
-    assert 'scout_enabled' in reconf and 'Scout / Dış Araştırma' in reconf
+    assert 'External Research / Scout — runtime-gated' in install
+    assert '`websearch` + `webfetch`' in install
+    assert 'Scout sorusu gösterme' in install
+    assert 'native Scout' in reconf
 
 # rc.19 SMART model selection + opt-in Playwright MCP
 
@@ -825,10 +803,10 @@ def test_playwright_reconfigure_disable_preserves_root_user_mcp(tmp_path):
 
 def test_playwright_and_scout_share_minimal_hhc_owned_aux_config(tmp_path):
     p=tmp_path/'app'
-    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','web-development','--scout','enabled','--scout-model','provider/research','--playwright','enabled')
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','web-development','--scout','enabled','--playwright','enabled')
     assert r.returncode==0, r.stderr
     cfg=json.loads((p/'.opencode/opencode.jsonc').read_text(encoding='utf-8'))
-    assert cfg['agent']['scout']['model']=='provider/research'
+    assert 'agent' not in cfg or 'scout' not in cfg.get('agent',{})
     assert 'playwright' in cfg['mcp']
     assert not (KIT/'roles/scout.md').exists()
 
@@ -942,11 +920,11 @@ def test_update_legacy_minimal_migrates_to_basic_and_expands_capability_pool(tmp
 def test_update_scout_playwright_state_preserved(tmp_path):
     p=tmp_path/'app'
     r=run(KIT/'scripts/install.py','--project-path',p,'--preset','web-development',
-          '--scout','enabled','--scout-model','provider/research',
+          '--scout','enabled',
           '--playwright','enabled')
     assert r.returncode==0, r.stderr
     state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
-    assert state['scout_enabled'] is True and state['scout_model']=='provider/research'
+    assert state['scout_enabled'] is True and state['scout_model'] is None and state['scout_model_mode']=='runtime-native'
     assert state['playwright_enabled'] is True
     state['kit_version']='1.0.0'
     (p/'.opencode/hhc-team.json').write_text(json.dumps(state,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
@@ -954,7 +932,7 @@ def test_update_scout_playwright_state_preserved(tmp_path):
     assert r.returncode==0, r.stderr
     new_state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
     assert new_state['scout_enabled'] is True
-    assert new_state['scout_model']=='provider/research'
+    assert new_state['scout_model'] is None and new_state['scout_model_mode']=='runtime-native'
     assert new_state['playwright_enabled'] is True
     # .opencode/opencode.jsonc hala mevcut
     assert (p/'.opencode/opencode.jsonc').exists()
@@ -1491,8 +1469,8 @@ def test_powerful_policy_has_controlled_parallelism_and_no_default_duplicate(tmp
     text=(p/'.opencode/agents/working-manager.md').read_text(encoding='utf-8')
     assert 'Çalışma Profili: Powerful' in text
     assert 'Bağımsız ve yüksek değerli işleri daha istekli paralelleştir' in text
-    assert 'Aynı rolü varsayılan olarak çoğaltma' in text
-    assert 'gerekli kalite kapıları geçtiğinde dur' in text
+    assert 'aynı rolü varsayılan olarak çoğaltma' in text.lower()
+    assert 'gerekli kalite kapıları geçtiğinde dur' in text.lower()
     assert 'Bağımlı işler' in text and 'sıralı kalır' in text
 
 
@@ -1546,10 +1524,10 @@ def test_playwright_is_characteristic_gated_not_profile_gated(tmp_path):
 def test_scout_is_profile_independent(tmp_path):
     for profile in ('basic','powerful'):
         p=tmp_path/profile
-        r=run(KIT/'scripts/install.py','--project-path',p,'--preset',profile,'--scout','enabled','--scout-model','provider/research')
+        r=run(KIT/'scripts/install.py','--project-path',p,'--preset',profile,'--scout','enabled')
         assert r.returncode==0, r.stderr
         s=_state(p)
-        assert s['scout_enabled'] is True and s['scout_model']=='provider/research'
+        assert s['scout_enabled'] is True and s['scout_model'] is None and s['scout_model_mode']=='runtime-native'
         assert 'scout: allow' in (p/'.opencode/agents/working-manager.md').read_text(encoding='utf-8')
 
 
@@ -1589,16 +1567,17 @@ def test_no_silent_premium_fallback_or_profile_model_override():
         assert 'model' not in data and 'models' not in data
 
 
-def test_profile_names_and_semantics_have_tr_en_documentation_parity():
+def test_canonical_documentation_is_turkish_without_english_parity_dependency():
     tr=(KIT/'README.md').read_text(encoding='utf-8')
-    en=(KIT/'README.en.md').read_text(encoding='utf-8')
+    assert not (KIT/'README.en.md').exists()
+    assert not (KIT/'INSTALLATION.md').exists()
     for name in ('Basic','Standard','Powerful'):
-        assert name in tr and name in en
+        assert name in tr
     for technical in ('browser_ui','desktop_ui','security-reviewer','visual-qa'):
-        assert technical in tr and technical in en
+        assert technical in tr
     assert 'varsayılan ve önerilen' in tr.lower()
-    assert 'default and recommended' in en.lower()
-
+    build=(KIT/'scripts/release-build.py').read_text(encoding='utf-8')
+    assert 'README.en.md' not in build and 'INSTALLATION.md' not in build
 
 def test_main_profile_surface_exposes_only_three_and_custom_is_advanced():
     wizard=(KIT/'bootstrap/commands/hhc-install.md').read_text(encoding='utf-8')
@@ -1610,12 +1589,13 @@ def test_main_profile_surface_exposes_only_three_and_custom_is_advanced():
     assert '- **Web Development**' not in profile_section and '- **Desktop Development**' not in profile_section and '- **High Assurance**' not in profile_section
 
 
-def test_background_is_treated_as_stable_without_experimental_user_warning():
+def test_background_is_experimental_capability_gated_without_default_enable():
     manager=(KIT/'roles/manager.md').read_text(encoding='utf-8').lower()
     bootstrap=(KIT/'bootstrap/skills/hhc-project-bootstrap/SKILL.md').read_text(encoding='utf-8').lower()
-    assert 'background' in manager and 'background' in bootstrap
-    assert 'experimental' not in manager and 'deneysel' not in manager
-    assert 'dependency-independent' in bootstrap
+    assert 'arka planda' in manager and 'arka planda' in bootstrap
+    assert 'opencode_experimental_background_subagents=true' in manager
+    assert 'experimental' in bootstrap.lower()
+    assert 'bağımlılıktan bağımsız' in bootstrap
 
 
 # ── 1.2.0 audit fixes regression tests ──
@@ -1715,13 +1695,13 @@ def test_status_reports_kit_version_and_roles_and_models(tmp_path):
     out=r.stdout
     kit_version=(KIT/'VERSION').read_text(encoding='utf-8').strip()
     assert kit_version in out
-    assert 'Proje sürümü (state):' in out
+    assert 'Proje sürümü (durum):' in out
     assert 'Global kit sürümü:' in out
     assert 'working-manager' in out and 'coder' in out and 'qa-reviewer' in out
     assert 'provider/mgr' in out and 'provider/coder' in out and 'provider/qa' in out
     assert 'Scout:' in out
     assert 'KAPALI' in out
-    assert 'Profil:' in out and 'standard' in out
+    assert 'Çalışma Profili:' in out and 'standard' in out
 
 def test_status_requires_state(tmp_path):
     p=tmp_path/'app'; p.mkdir()
@@ -1741,3 +1721,418 @@ def test_status_does_not_write_files(tmp_path):
     after_managed=set(state_after.get('managed_files',[]))
     assert before_managed==after_managed
     assert state_before['kit_version']==state_after['kit_version']
+
+
+# ── 1.3.0 sadeleştirme ve bakım regresyonları ──
+
+def test_same_version_update_restores_missing_managed_agent(tmp_path):
+    p=tmp_path/'app'
+    assert run(KIT/'scripts/install.py','--project-path',p,'--preset','standard').returncode==0
+    coder=p/'.opencode/agents/coder.md'
+    coder.unlink()
+    r=run(KIT/'scripts/install.py','--project-path',p,'--update')
+    assert r.returncode==0, r.stderr
+    assert json.loads(r.stdout)['status']=='UPDATED'
+    assert coder.is_file()
+
+def test_same_version_update_repairs_stale_managed_file_but_preserves_unmanaged(tmp_path):
+    p=tmp_path/'app'
+    assert run(KIT/'scripts/install.py','--project-path',p,'--preset','standard').returncode==0
+    managed=p/'.opencode/commands/hhc-team-status.md'
+    managed.write_text('STALE',encoding='utf-8')
+    user=p/'.opencode/user-note.txt'; user.write_text('BENİ KORU',encoding='utf-8')
+    r=run(KIT/'scripts/install.py','--project-path',p,'--update')
+    assert r.returncode==0, r.stderr
+    assert managed.read_text(encoding='utf-8')==(KIT/'commands/hhc-team-status.md').read_text(encoding='utf-8')
+    assert user.read_text(encoding='utf-8')=='BENİ KORU'
+
+def test_content_sync_self_updates_updater_atomically(tmp_path):
+    ug=_import_update_global()
+    current=tmp_path/'current'; staging=tmp_path/'staging'
+    (current/'scripts').mkdir(parents=True); (staging/'scripts').mkdir(parents=True)
+    old=current/'scripts/update_global.py'; new=staging/'scripts/update_global.py'
+    old.write_text('OLD',encoding='utf-8'); new.write_text('NEW',encoding='utf-8')
+    (staging/'VERSION').write_text('1.3.0',encoding='utf-8')
+    manifest={
+      'scripts/update_global.py': hashlib.sha256(new.read_bytes()).hexdigest(),
+      'VERSION': hashlib.sha256((staging/'VERSION').read_bytes()).hexdigest(),
+    }
+    swapped=ug._content_sync(staging,current,manifest,str(old))
+    assert swapped==2
+    assert old.read_text(encoding='utf-8')=='NEW'
+    assert not old.with_name(old.name+'.hhc-new').exists()
+
+def test_content_sync_failed_self_replace_keeps_old_updater_and_raises(tmp_path, monkeypatch):
+    ug=_import_update_global()
+    current=tmp_path/'current'; staging=tmp_path/'staging'
+    (current/'scripts').mkdir(parents=True); (staging/'scripts').mkdir(parents=True)
+    old=current/'scripts/update_global.py'; new=staging/'scripts/update_global.py'
+    old.write_text('OLD',encoding='utf-8'); new.write_text('NEW',encoding='utf-8')
+    manifest={'scripts/update_global.py':hashlib.sha256(new.read_bytes()).hexdigest()}
+    real_replace=ug.os.replace
+    def fail_replace(src,dst):
+        if Path(dst)==old: raise PermissionError('kilit')
+        return real_replace(src,dst)
+    monkeypatch.setattr(ug.os,'replace',fail_replace)
+    import pytest
+    with pytest.raises(PermissionError):
+        ug._content_sync(staging,current,manifest,str(old))
+    assert old.read_text(encoding='utf-8')=='OLD'
+    assert not old.with_name(old.name+'.hhc-new').exists()
+
+def test_status_scout_is_not_reported_as_mcp(tmp_path):
+    p=tmp_path/'app'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','standard','--scout','enabled')
+    assert r.returncode==0, r.stderr
+    r=run(KIT/'scripts/install.py','--project-path',p,'--status')
+    assert r.returncode==0
+    assert 'Scout: AÇIK' in r.stdout
+    assert 'Playwright MCP: KAPALI' in r.stdout
+    assert 'MCP: yok' in r.stdout
+
+def test_status_playwright_is_reported_as_mcp(tmp_path):
+    p=tmp_path/'web'; p.mkdir(); (p/'package.json').write_text('{"dependencies":{"react":"1"}}',encoding='utf-8'); (p/'vite.config.js').write_text('',encoding='utf-8')
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','standard','--playwright','enabled')
+    assert r.returncode==0, r.stderr
+    r=run(KIT/'scripts/install.py','--project-path',p,'--status')
+    assert 'Playwright MCP: AÇIK' in r.stdout and 'MCP: var' in r.stdout
+
+def test_status_nonexistent_project_is_read_only(tmp_path):
+    p=tmp_path/'yok'
+    assert not p.exists()
+    r=run(KIT/'scripts/install.py','--project-path',p,'--status')
+    assert r.returncode==0
+    assert 'kurulu değil' in r.stdout
+    assert not p.exists()
+
+def test_profile_policy_text_is_derived_from_canonical_metadata():
+    import importlib.util
+    spec=importlib.util.spec_from_file_location('hhc_install_policy',KIT/'scripts/install.py')
+    mod=importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+    for profile in ('basic','standard','powerful'):
+        text=mod.profile_policy_text(profile)
+        assert f'Çalışma Profili: {profile.title()}' in text
+    original=(KIT/'presets/basic.json').read_text(encoding='utf-8')
+    try:
+        d=json.loads(original); d['policy']['parallelism']='invalid'
+        (KIT/'presets/basic.json').write_text(json.dumps(d),encoding='utf-8')
+        import pytest
+        with pytest.raises(mod.InstallError): mod.profile_policy_text('basic')
+    finally:
+        (KIT/'presets/basic.json').write_text(original,encoding='utf-8')
+
+# ── 1.3.1 namespace + Scout inheritance regresyonları ──
+
+def test_131_canonical_skill_and_command_namespace():
+    skills=sorted(p.parent.name for p in (KIT/'skills').glob('*/SKILL.md'))
+    assert len(skills)==13
+    assert all(x.startswith('hhc-') for x in skills)
+    commands=sorted(p.stem for p in (KIT/'commands').glob('*.md'))
+    assert commands==['hhc-team-review','hhc-team-status']
+    assert not (KIT/'commands/team-review.md').exists()
+    assert not (KIT/'commands/team-status.md').exists()
+    for p in (KIT/'presets').glob('*.json'):
+        d=json.loads(p.read_text(encoding='utf-8'))
+        assert len(d['skills'])==13 and all(x.startswith('hhc-') for x in d['skills'])
+        assert d['commands']==['hhc-team-status','hhc-team-review']
+
+
+def test_131_legacy_skill_and_command_paths_migrate_on_update(tmp_path):
+    p=tmp_path/'app'
+    assert run(KIT/'scripts/install.py','--project-path',p,'--preset','standard').returncode==0
+    state_path=p/'.opencode/hhc-team.json'
+    state=json.loads(state_path.read_text(encoding='utf-8'))
+    reverse_skills={
+      'hhc-task-classification':'task-classification','hhc-repository-analysis':'repository-analysis',
+      'hhc-implementation-planning':'implementation-planning','hhc-safe-refactoring':'safe-refactoring',
+      'hhc-test-strategy':'test-strategy','hhc-code-review':'code-review','hhc-regression-review':'regression-review',
+      'hhc-security-review':'security-review','hhc-visual-qa':'visual-qa','hhc-accessibility-review':'accessibility-review',
+      'hhc-browser-testing':'browser-testing','hhc-release-guardrails':'release-guardrails',
+      'hhc-changelog-and-documentation':'changelog-and-documentation',
+    }
+    # 1.3.0 kurulumunun eski namespace düzenini dosya + state düzeyinde simüle et.
+    for new,old in reverse_skills.items():
+        src=p/'.opencode/skills'/new
+        dst=p/'.opencode/skills'/old
+        src.rename(dst)
+    for new,old in [('hhc-team-status','team-status'),('hhc-team-review','team-review')]:
+        (p/'.opencode/commands'/f'{new}.md').rename(p/'.opencode/commands'/f'{old}.md')
+    migrated=[]
+    for relp in state['managed_files']:
+        for new,old in reverse_skills.items():
+            relp=relp.replace(f'.opencode/skills/{new}/',f'.opencode/skills/{old}/')
+        relp=relp.replace('.opencode/commands/hhc-team-status.md','.opencode/commands/team-status.md')
+        relp=relp.replace('.opencode/commands/hhc-team-review.md','.opencode/commands/team-review.md')
+        migrated.append(relp)
+    state['managed_files']=migrated
+    state['skills']=[reverse_skills[x] for x in state['skills']]
+    state['commands']=['team-status','team-review']
+    state['kit_version']='1.3.0'
+    state_path.write_text(json.dumps(state,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    user=p/'.opencode/user-owned.txt'; user.write_text('koru',encoding='utf-8')
+
+    r=run(KIT/'scripts/install.py','--project-path',p,'--update')
+    assert r.returncode==0, r.stderr
+    new_state=json.loads(state_path.read_text(encoding='utf-8'))
+    assert new_state['kit_version']==(KIT/'VERSION').read_text().strip()
+    assert all(x.startswith('hhc-') for x in new_state['skills'])
+    assert new_state['commands']==['hhc-team-status','hhc-team-review']
+    assert not (p/'.opencode/skills/task-classification').exists()
+    assert (p/'.opencode/skills/hhc-task-classification/SKILL.md').is_file()
+    assert not (p/'.opencode/commands/team-status.md').exists()
+    assert (p/'.opencode/commands/hhc-team-status.md').is_file()
+    assert user.read_text(encoding='utf-8')=='koru'
+
+
+def test_132_legacy_scout_model_state_migrates_to_runtime_native(tmp_path):
+    p=tmp_path/'app'
+    assert run(KIT/'scripts/install.py','--project-path',p,'--preset','standard').returncode==0
+    state_path=p/'.opencode/hhc-team.json'
+    state=_state(p)
+    state['kit_version']='1.3.1'
+    state['scout_enabled']=True
+    state['scout_model']='provider/old-scout'
+    state['scout_model_mode']='explicit'
+    # Eski HHC-owned scout-only aux config'i de simüle et.
+    aux=p/'.opencode/opencode.jsonc'; aux.write_text('{"agent":{"scout":{"model":"provider/old-scout"}}}\n',encoding='utf-8')
+    rel='.opencode/opencode.jsonc'
+    if rel not in state['managed_files']: state['managed_files'].append(rel)
+    state_path.write_text(json.dumps(state,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    r=run(KIT/'scripts/install.py','--project-path',p,'--update')
+    assert r.returncode==0, r.stderr
+    s=_state(p)
+    assert s['scout_enabled'] is True
+    assert s['scout_model'] is None
+    assert s['scout_model_mode']=='runtime-native'
+    assert not aux.exists()
+    assert 'scout: allow' in (p/'.opencode/agents/working-manager.md').read_text(encoding='utf-8')
+
+
+def test_131_readme_and_installation_inventory_are_current():
+    readme=(KIT/'README.md').read_text(encoding='utf-8')
+    kurulum=(KIT/'KURULUM.md').read_text(encoding='utf-8')
+    for text in (readme,kurulum):
+        assert 'hhc-task-classification' in text
+        assert '/hhc-team-status' in text and '/hhc-team-review' in text
+        assert 'repository-explorer' in text and 'Scout' in text
+    assert 'HHC Envanteri' in readme
+    assert 'HHC envanteri' in kurulum
+    assert '`/hhc-status` ile `/hhc-team-status` aynı iş değildir' in readme
+
+
+# ── 1.3.2 SMART/token/context doğruluk regresyonları ──
+
+def test_132_background_is_capability_gated_in_primary_prompts():
+    for name in ('manager','working-manager'):
+        text=(KIT/'roles'/f'{name}.md').read_text(encoding='utf-8')
+        assert 'Task araç yüzeyi `background` seçeneğini gerçekten sunuyorsa' in text
+        assert 'OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true' in text
+        assert 'sürekli durum sorgulama/polling yapma' in text
+        assert 'yoksa veya çağrı reddedilirse' in text
+
+
+def test_132_repository_explorer_uses_staged_precision_first_exploration():
+    text=(KIT/'roles/repository-explorer.md').read_text(encoding='utf-8')
+    assert 'Keşfi kademeli daralt' in text
+    assert 'sonuç genişse sorguyu daralt' in text
+    assert 'Kanıt yetersizse kapsamı adım adım genişlet' in text
+    assert 'Sabit kör sonuç limitleriyle' in text
+
+
+def test_132_visual_qa_prefers_targeted_evidence_before_page_wide_evidence():
+    text=(KIT/'roles/visual-qa.md').read_text(encoding='utf-8')
+    assert 'hedefli DOM/accessibility snapshot' in text
+    assert 'hedef element ekran görüntüsü' in text
+    assert 'viewport/sayfa kanıtına genişle' in text
+    assert 'Gereksiz full-page ekran görüntüsü üretme' in text
+
+
+def test_132_docs_do_not_overclaim_background_or_scout_runtime_support():
+    readme=(KIT/'README.md').read_text(encoding='utf-8')
+    kurulum=(KIT/'KURULUM.md').read_text(encoding='utf-8')
+    for text in (readme,kurulum):
+        assert '1.18.15' in text
+        assert '`websearch` + `webfetch`' in text
+        assert 'OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true' in text
+    assert f'**Sürüm: {(KIT/"VERSION").read_text().strip()}**' in readme
+
+
+def test_134_user_action_handoff_contract():
+    root=Path(__file__).resolve().parents[1]
+    for name in ['manager.md','working-manager.md']:
+        text=(root/'roles'/name).read_text(encoding='utf-8')
+        assert 'USER_ACTION_REQUIRED' in text
+        assert 'WAIT_FOR_USER' in text
+        assert 'task_id' in text
+        assert 'otomatik yeniden' in text.lower() or 'otomatik retry' in text.lower()
+    for name in ['coder.md','architect.md','repository-explorer.md','qa-reviewer.md','visual-qa.md','security-reviewer.md']:
+        text=(root/'roles'/name).read_text(encoding='utf-8')
+        assert 'STATUS: USER_ACTION_REQUIRED' in text
+        assert 'CODE:' in text
+        assert 'EXPIRES:' in text
+        assert 'Secret, token, parola veya credential' in text
+
+def test_134_task_classification_does_not_retry_user_action_waits():
+    root=Path(__file__).resolve().parents[1]
+    text=(root/'skills/hhc-task-classification'/'SKILL.md').read_text(encoding='utf-8')
+    assert 'USER_ACTION_REQUIRED' in text
+    assert 'WAIT_FOR_USER' in text
+    assert 'otomatik retry etme' in text
+
+def test_135_version_metadata_matches_canonical_version():
+    version=(KIT/'VERSION').read_text(encoding='utf-8').strip()
+    parts=version.split('.')
+    assert len(parts)==3 and parts[:2]==['1','3'] and parts[2].isdigit()
+    assert f'**Sürüm: {version}**' in (KIT/'README.md').read_text(encoding='utf-8')
+    for profile in ('basic','standard','powerful'):
+        data=json.loads((KIT/'presets'/f'{profile}.json').read_text(encoding='utf-8'))
+        assert data['kit_version']==version
+
+def test_135_subagents_cannot_question_user_directly():
+    for name in ('architect','repository-explorer','coder','qa-reviewer','security-reviewer','visual-qa'):
+        text=(KIT/'roles'/f'{name}.md').read_text(encoding='utf-8')
+        assert 'question: deny' in text
+    for name in ('manager','working-manager'):
+        text=(KIT/'roles'/f'{name}.md').read_text(encoding='utf-8')
+        assert 'question: allow' in text
+
+def test_135_docs_describe_user_action_as_instruction_plus_permission_guard():
+    readme=(KIT/'README.md').read_text(encoding='utf-8')
+    kurulum=(KIT/'KURULUM.md').read_text(encoding='utf-8')
+    assert 'native `question` izni kapatılarak' in readme
+    assert 'best-effort' in readme
+    assert 'native `question` permission `deny`' in kurulum
+    assert 'intercept ettiği iddiasında bulunmaz' in kurulum
+
+
+# ── 1.3.6 master quality gate regressions ──
+
+def test_136_status_malformed_state_is_actionable_without_traceback(tmp_path):
+    p=tmp_path/'project'; (p/'.opencode').mkdir(parents=True)
+    (p/'.opencode/hhc-team.json').write_text('{broken',encoding='utf-8')
+    r=run(KIT/'scripts/install.py','--project-path',p,'--status')
+    assert r.returncode==2
+    assert 'HHC-INSTALL-001:' in r.stderr
+    assert 'Traceback' not in r.stderr
+
+
+def test_136_invalid_mode_combinations_do_not_traceback(tmp_path):
+    for extra in [('--status','--reconfigure'),('--update','--reconfigure')]:
+        r=run(KIT/'scripts/install.py','--project-path',tmp_path/'p',*extra)
+        assert r.returncode==2
+        assert 'HHC-INSTALL-001:' in r.stderr
+        assert 'Traceback' not in r.stderr
+
+
+def _symlink_or_skip(link: Path, target: Path):
+    try:
+        link.symlink_to(target)
+    except (OSError, NotImplementedError) as e:
+        pytest.skip(f'symlink unavailable on this platform: {e}')
+
+
+def test_136_force_refuses_project_config_symlink(tmp_path):
+    p=tmp_path/'project'; p.mkdir()
+    outside=tmp_path/'outside.jsonc'; outside.write_text('ORIGINAL',encoding='utf-8')
+    _symlink_or_skip(p/'opencode.jsonc',outside)
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','standard','--force')
+    assert r.returncode==2
+    assert 'sembolik bağlantı' in r.stderr
+    assert outside.read_text(encoding='utf-8')=='ORIGINAL'
+
+
+def test_136_reconfigure_refuses_state_symlink(tmp_path):
+    p=tmp_path/'project'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','standard')
+    assert r.returncode==0
+    state=p/'.opencode/hhc-team.json'; outside=tmp_path/'outside-state.json'
+    outside.write_bytes(state.read_bytes()); state.unlink(); _symlink_or_skip(state,outside)
+    before=outside.read_bytes()
+    r=run(KIT/'scripts/install.py','--project-path',p,'--reconfigure','--preset','basic')
+    assert r.returncode==2
+    assert 'sembolik bağlantı' in r.stderr
+    assert outside.read_bytes()==before
+
+
+def test_136_content_sync_rejects_manifest_file_hash_mismatch_before_write(tmp_path):
+    ug=_import_update_global()
+    staging=tmp_path/'staging'; current=tmp_path/'current'; staging.mkdir(); current.mkdir()
+    (staging/'file.txt').write_text('BAD',encoding='utf-8')
+    (current/'file.txt').write_text('OLD',encoding='utf-8')
+    expected=hashlib.sha256(b'GOOD').hexdigest()
+    with pytest.raises(ValueError,match='bütünlüğü'):
+        ug._content_sync(staging,current,{'file.txt':expected},str(current/'scripts/update_global.py'))
+    assert (current/'file.txt').read_text(encoding='utf-8')=='OLD'
+
+
+def test_136_content_sync_rejects_unsafe_manifest_path(tmp_path):
+    ug=_import_update_global()
+    staging=tmp_path/'staging'; current=tmp_path/'current'; staging.mkdir(); current.mkdir()
+    with pytest.raises(ValueError,match='Güvensiz manifest yolu'):
+        ug._content_sync(staging,current,{'../escape.txt':'0'*64},str(current/'scripts/update_global.py'))
+
+
+def test_136_update_accepts_v_tag_with_canonical_non_v_asset_names(tmp_path,monkeypatch,capsys):
+    ug,current=_ug_setup(monkeypatch,tmp_path,'1.1.1')
+    release_dir=tmp_path/'release'; release_dir.mkdir()
+    manifest,zip_path=_make_fake_release(release_dir,'1.1.2')
+    release_api={
+        'tag_name':'v1.1.2',
+        'assets':[
+            {'name':'RELEASE-MANIFEST-1.1.2.json','browser_download_url':'https://example.com/manifest.json'},
+            {'name':'HHC-AI-Team-Kit-1.1.2.zip','browser_download_url':'https://example.com/update.zip'},
+        ],
+    }
+    _patch_network_full_flow(monkeypatch,ug,release_api,manifest,zip_path,manifest['archive_sha256'])
+    monkeypatch.setattr(sys,'argv',['update_global.py'])
+    assert ug.main()==0
+    result=json.loads(capsys.readouterr().out)
+    assert result['status']=='UPDATED'
+    assert result['current_version']=='1.1.2'
+
+
+def test_136_global_runtime_copy_failure_preserves_existing_runtime(tmp_path,monkeypatch):
+    scripts=str(KIT/'scripts')
+    if scripts not in sys.path: sys.path.insert(0,scripts)
+    import install_global as ig
+    dst=tmp_path/'current'; dst.mkdir(); (dst/'VERSION').write_text('OLD',encoding='utf-8')
+    real_copytree=ig.shutil.copytree
+    def fail_copytree(*args,**kwargs):
+        raise OSError('simulated copy failure')
+    monkeypatch.setattr(ig.shutil,'copytree',fail_copytree)
+    with pytest.raises(OSError,match='simulated copy failure'):
+        ig.copy_runtime(dst)
+    assert (dst/'VERSION').read_text(encoding='utf-8')=='OLD'
+    monkeypatch.setattr(ig.shutil,'copytree',real_copytree)
+
+
+def test_136_bootstrap_docs_match_runtime_gated_scout_and_update_ownership():
+    install=(KIT/'bootstrap/commands/hhc-install.md').read_text(encoding='utf-8')
+    update=(KIT/'bootstrap/commands/hhc-update.md').read_text(encoding='utf-8')
+    assert 'repository-explorer` devralımı mı explicit override' not in install
+    assert 'HHC Scout modeli seçmez veya override etmez' in install
+    assert 'Proje dosyaları her zaman `/hhc-update` ile güncel tutulur.' not in update
+    assert 'kullanıcı tarafından yönetilen çakışmalar' in update
+
+def test_136_global_install_main_copy_failure_is_actionable(tmp_path,monkeypatch,capsys):
+    scripts=str(KIT/'scripts')
+    if scripts not in sys.path: sys.path.insert(0,scripts)
+    import install_global as ig
+    dst=tmp_path/'current'; dst.mkdir(); (dst/'VERSION').write_text('OLD',encoding='utf-8')
+    monkeypatch.setattr(ig,'runtime_root',lambda:dst)
+    monkeypatch.setattr(ig,'copy_runtime',lambda _dst: (_ for _ in ()).throw(OSError('disk full')))
+    monkeypatch.setattr(sys,'argv',['install_global.py','--install'])
+    assert ig.main()==2
+    captured=capsys.readouterr()
+    assert 'HHC-INSTALL-001:' in captured.err
+    assert 'Traceback' not in captured.err
+    assert (dst/'VERSION').read_text(encoding='utf-8')=='OLD'
+
+def test_136_model_advisor_never_recommends_deprecated_model():
+    scripts=str(KIT/'scripts')
+    if scripts not in sys.path: sys.path.insert(0,scripts)
+    import model_advisor as ma
+    norm={'known':True,'tool_call':True,'reasoning':True,'image_input':None,'attachment':None,
+          'context':200000,'output_limit':10000,'cost_input':1.0,'cost_output':1.0,'status':'deprecated'}
+    result=ma.classify('manager',norm)
+    assert result['classification']=='WARNING'

@@ -1,5 +1,5 @@
 ---
-name: test-strategy
+name: hhc-test-strategy
 description: Değişiklik sınıfına göre en küçük yeterli ve tekrarlanabilir deterministik doğrulama setini seçmek için kullanılır.
 ---
 
@@ -10,7 +10,7 @@ description: Değişiklik sınıfına göre en küçük yeterli ve tekrarlanabil
 - Hata düzeltmesi: yeniden üretim/regresyon testi + ilgili mevcut testler.
 - Yeni davranış: hedef test + etkilenmiş entegrasyon.
 - Yeniden düzenleme: davranışı koruyan mevcut testler.
-- Arayüz: fonksiyonel kontrol + gerçekten gerekiyorsa responsive/tarayıcı doğrulaması.
+- Arayüz: fonksiyonel kontrol + gerçekten gerekiyorsa farklı ekran boyutlarına uyum/tarayıcı doğrulaması.
 - Güvenlik: ilgili pozitif/negatif senaryolar.
 - Kurulum: temiz kurulum + tekrar kurulum.
 

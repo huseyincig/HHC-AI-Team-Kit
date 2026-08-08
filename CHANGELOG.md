@@ -1,5 +1,63 @@
 # Changelog
 
+## 1.3.6
+
+- Master quality gate: status/invalid CLI hata yolları artık traceback yerine tek `HHC-INSTALL-001` çıktısı verir.
+- Proje `opencode.jsonc` ve HHC state symlink yazımları güvenlik nedeniyle reddedilir.
+- Global updater release staging içeriğini current runtime'a dokunmadan önce manifest path + dosya varlığı + SHA-256 ile doğrular.
+- Global updater `vX.Y.Z` GitHub tag'leri ile canonical `X.Y.Z` release asset adlarını birlikte destekler.
+- Global runtime kurulum kopyası staging + rollback-safe swap ile yapılır; kopya hatası mevcut sağlam runtime'ı silmez.
+- Bootstrap Scout final özeti ve `/hhc-update` güncellik ifadesi current runtime/ownership gerçeğiyle eşitlendi.
+
+## 1.3.5
+
+- 1.3.4 paketindeki sürüm tutarsızlığı düzeltildi: README ve üç preset `kit_version` artık canonical `VERSION` ile eşleşir; validator bu sözleşmeyi doğrular.
+- Tüm specialist subagent'larda OpenCode native `question` permission `deny` edilerek kullanıcı sorusu/etkileşimi parent Manager yüzeyine zorlandı; Manager ve Working Manager `question: allow` olarak kalır.
+- `USER_ACTION_REQUIRED` dokümantasyonu enforcement seviyesini doğru ayıracak şekilde netleştirildi: native question guard permission ile zorlanır, bash/device-code/OAuth handoff ise agent instruction seviyesinde best-effort'tur.
+- Scout kurulum anlatımı runtime-gated gerçekle uyumlu hale getirildi; Scout yalnız gerçekten keşfedilirse kullanıcıya seçenek olarak sunulur.
+- Yeni agent, skill, MCP, router veya context framework eklenmedi.
+
+
+## 1.3.4
+
+- Alt ajanların OAuth/device-code, MFA, izin/onay ve benzeri kullanıcı müdahalesi gereken durumları Manager'a `USER_ACTION_REQUIRED` handoff ile taşıması tanımlandı.
+- Manager bu durumları `FAIL/RETRY` yerine `WAIT_FOR_USER` olarak ele alır; güvenli URL/kodu kullanıcıya gösterir ve mümkünse aynı `task_id` child session'ını sürdürür.
+- Auth/user-action bekleyen görevlerin otomatik retry döngüsüne girmemesi için task-classification ve tüm specialist rol promptları güncellendi.
+
+## 1.3.3
+
+- External Research yönlendirmesi gerçek OpenCode 1.18.15 Desktop/CLI kanıtına göre sadeleştirildi: ana ajan önce native `websearch` + `webfetch` kullanır; Scout yalnız runtime gerçekten sunarsa isteğe bağlı bağlam yalıtımı olarak değerlendirilir.
+- Test edilen OpenCode Desktop 1.18.15 ve standalone CLI 1.18.15 agent discovery yüzeylerinde native Scout bulunmadığı dokümante edildi; kurulum artık Scout yüzeyi doğrulanmadıkça kullanıcıya gereksiz Scout sorusu sormaz.
+- Background subagent yüzeyinin OpenCode 1.18.15'te experimental `OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true` ile açıldığı dokümante edildi; HHC default flag zorlamaz ve capability-gated foreground fallback'i korur.
+- HHC'nin 6 komutluk paket envanteri ile OpenCode runtime command catalog ayrımı belgelendi: 1.18.15 runtime 13 skill'i de `source: skill` olarak slash-command kataloğuna ekleyebilir.
+- Yeni rol, skill, MCP, router, memory veya model kataloğu eklenmedi.
+
+## 1.3.2
+
+- Manager ve Working Manager arka plan paralelliğini yalnız Task aracı gerçekten `background` yüzeyi sunuyorsa kullanacak şekilde düzeltildi; desteklenmeyen çalışma zamanında ön plan geri dönüşü açıklaştırıldı.
+- `repository-explorer` keşfi dar referans/sembol aramasından başlayıp yalnız kanıt yetersizse genişleyen kademeli politika ile sıkılaştırıldı; kör sabit grep limiti eklenmedi.
+- `visual-qa`, yerel bileşen değişikliklerinde hedefli snapshot/element kanıtını, sayfa/yerleşim değişikliklerinde viewport kanıtını tercih edecek şekilde token/görsel maliyet açısından iyileştirildi.
+- Scout için güncel OpenCode dokümantasyonu ile kararlı 1.18.8 kaynak kodu arasındaki uyumsuzluk doğrulandı. HHC artık `agent.scout` model override'ı yazarak Scout bulunmayan sürümlerde aynı adlı custom agent oluşturma riski taşımaz; yalnız çalışma zamanının gerçekten sunduğu native Scout yüzeyine izin verir. Eski Scout model state/aux config update sırasında güvenli biçimde temizlenir.
+- Compaction/pruning anlatımı sürüm-bağımlı ve kayıplı olabileceği gerçeğine göre yumuşatıldı; yeni context-pruning eklentisi veya yerel model kataloğu eklenmedi.
+
+## 1.3.1
+
+- HHC'ye ait 13 skill teknik ID'si `hhc-` namespace'ine alındı; skill davranışları değişmedi.
+- Proje ekip komutları `/team-status` ve `/team-review`, görevleri korunarak `/hhc-team-status` ve `/hhc-team-review` olarak yeniden adlandırıldı.
+- 1.3.0 ve daha eski HHC-managed skill/command yolları update/reconfigure sırasında yeni namespace'e güvenli biçimde taşınır; HHC tarafından yönetilmeyen kullanıcı dosyaları korunur.
+- Scout normal kurulumda `repository-explorer` rolüne atanmış modeli varsayılan olarak devralır; ayrı Scout model sorusu kaldırıldı, gelişmiş `--scout-model` explicit override olarak korundu.
+- Legacy Scout state'i explicit model seçimi olarak korunur; inherited/explicit ayrımı reconfigure sırasında kullanıcı model tercihini kaybetmeden sürdürülür.
+- README ve KURULUM gerçek HHC envanteri, 6 HHC komutu, 13 namespaced skill ve Scout/Repository Explorer ayrımıyla güncellendi.
+
+## 1.3.0
+
+- HHC yeniden tek resmi kullanıcı dili olarak Türkçeye sadeleştirildi; İngilizce dokümantasyon eşlik yükü çekirdek dağıtımdan kaldırıldı.
+- `/hhc-update` aynı sürümde eksik veya eski HHC tarafından yönetilen dosyaları artık yeniden senkronlar; sürüm eşitliği dosya bütünlüğü yerine geçmez.
+- Global güncelleyici, `update_global.py` dosyasını da güvenli atomik değişimle kendi yeni sürümüne taşıyabilir.
+- `/hhc-status` içinde yerleşik Scout ile Playwright MCP ayrımı düzeltildi ve salt-okunur sorgunun klasör oluşturması engellendi.
+- Profil politika metni profil üst verisinden deterministik üretilerek çift tek kaynak tutarsızlığı riski kaldırıldı.
+- Proje özellikleri için ek çalışma zamanı bağlamı eklenmedi; düşük bağlam ilkesi korunarak dokümantasyon gerçek kullanıma göre netleştirildi.
+
 ## 1.2.3
 
 - refactor: /hhc-install-remote komutu ve remote_install.py kaldırıldı — bootstrap paradoksunu çözmüyordu (HHC yüklü olmayan PC'de çalışmaz, yüklü PC'de /hhc-install + elle git clone yeterli).
@@ -30,7 +88,7 @@
 ## 1.1.0
 
 - İlk kararlı sürüm. rc.19–rc.21 pre-release döngüsündeki tüm değişiklikleri içerir.
-- SMART model seçimi (models.dev metadata + capability validation), OpenCode native Scout için proje bazlı opt-in katmanı, Web Development için Playwright MCP opt-in.
+- SMART model seçimi (models.dev metadata + capability validation), OpenCode yerleşik Scout için proje bazlı opt-in katmanı, Web Development için Playwright MCP opt-in.
 - Deterministik doğrulama önceliği, minimum-agent delegation, dar permission surface, OpenCode native mekanizmalara bağlılık korundu.
 
 ## 1.1.0-rc.21

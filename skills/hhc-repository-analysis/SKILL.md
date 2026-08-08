@@ -1,5 +1,5 @@
 ---
-name: repository-analysis
+name: hhc-repository-analysis
 description: Görevle ilgili dosya, sembol, bağımlılık ve test yüzeyini minimum bağlamla çıkarmak için kullanılır.
 ---
 

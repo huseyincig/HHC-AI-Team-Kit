@@ -2,13 +2,13 @@
 """OpenCode model listesini salt-okunur keşfeder.
 
 Öncelik:
-1) OpenCode Desktop kullanıcı görünürlük state'i varsa `visibility == "show"` modelleri.
-   Windows Desktop'ta bu, kullanıcının `/models` görünürlüğüyle doğrulanan yerel state'tir.
-2) Desktop state yoksa/boşsa resmî `opencode models` CLI çıktısı.
-3) CLI da kullanılamıyorsa, yalnız yapılandırıldığı doğrulanabilen provider'lara ait yerel
-   cache girdileri + config'te açıkça tanımlı modeller BEST-EFFORT fallback olarak kullanılır.
+1) OpenCode Desktop kullanıcı görünürlük durumu varsa `visibility == "show"` modelleri.
+   Windows Desktop'ta bu, kullanıcının `/models` görünürlüğüyle doğrulanan yerel durum verisidir.
+2) Desktop durum verisi yoksa/boşsa resmî `opencode models` CLI çıktısı.
+3) CLI da kullanılamıyorsa, yalnız yapılandırıldığı doğrulanabilen sağlayıcılara ait yerel
+   önbellek girdileri + yapılandırmada açıkça tanımlı modeller EN İYİ ÇABA yedek kaynak olarak kullanılır.
 
-Desktop state ve cache dosya biçimleri OpenCode public API'si değildir. Credential dosyaları
+Desktop durum ve önbellek dosya biçimleri OpenCode genel kullanıma açık API'si değildir. Credential dosyaları
 direkt okunmaz.
 """
 from __future__ import annotations
@@ -20,9 +20,9 @@ ANSI_RE = re.compile(r'\x1b\[[0-9;]*m')
 
 
 def desktop_state_candidates() -> list[Path]:
-    """OpenCode Desktop'ın kullanıcı state'i için bilinen yerel adayları döndürür.
+    """OpenCode Desktop'ın kullanıcı durumu için bilinen yerel adayları döndürür.
 
-    `opencode.global.dat` public/stable API değildir; yalnız salt-okunur BEST-EFFORT kaynak
+    `opencode.global.dat` genel kullanıma açık/kararlı API değildir; yalnız salt-okunur EN İYİ ÇABA kaynağı
     olarak kullanılır. Windows Desktop'ta APPDATA yolu gerçek `/models` görünürlüğüyle
     doğrulanmıştır.
     """
@@ -34,7 +34,7 @@ def desktop_state_candidates() -> list[Path]:
 
 
 def desktop_visible_models(path: Path) -> list[str]:
-    """Desktop state içindeki açıkça `show` işaretli provider/model çiftlerini çıkarır."""
+    """Desktop durum verisindeki açıkça `show` işaretli provider/model çiftlerini çıkarır."""
     try:
         root = json.loads(path.read_text(encoding='utf-8'))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
@@ -88,7 +88,7 @@ def cache_candidates() -> list[Path]:
     roots.append(home / '.cache')
     out: list[Path] = []
     for root in roots:
-        # UNDOCUMENTED / BEST-EFFORT: OpenCode public API değildir.
+        # BELGELENMEMİŞ / EN İYİ ÇABA: OpenCode public API değildir.
         out.extend([root / 'opencode' / 'models.json', root / 'opencode.json'])
     return list(dict.fromkeys(p.expanduser() for p in out))
 
@@ -137,7 +137,7 @@ def config_candidates(project: Path) -> list[Path]:
 
 
 def configured_from_files(project: Path) -> tuple[set[str], set[str]]:
-    """Belgelendirilmiş config yüzeyinden provider kimlikleri ve açık model ID'leri çıkarır."""
+    """Belgelenmiş yapılandırma yüzeyinden sağlayıcı kimlikleri ve açık model ID'leri çıkarır."""
     providers:set[str]=set(); models:set[str]=set()
     for path in config_candidates(project):
         if not path.is_file(): continue
@@ -175,7 +175,7 @@ def models_from_cli(project: Path, refresh: bool = False) -> list[str]:
 
 
 def auth_list_text(project: Path) -> str:
-    """Credential dosyasını okumadan resmî CLI üzerinden authenticated provider görünümünü alır."""
+    """Kimlik bilgisi dosyasını okumadan resmî CLI üzerinden doğrulanmış sağlayıcı görünümünü alır."""
     exe=shutil.which('opencode')
     if not exe: return ''
     try:
@@ -185,7 +185,7 @@ def auth_list_text(project: Path) -> str:
 
 
 def collect_models(node, provider_hint: str|None=None, out:set[str]|None=None)->set[str]:
-    """UNDOCUMENTED cache JSON'undan aday provider/model kimliklerini toplar; UI filtresi sonra uygulanır."""
+    """BELGELENMEMİŞ önbellek JSON'undan aday provider/model kimliklerini toplar; UI filtresi sonra uygulanır."""
     if out is None: out=set()
     if isinstance(node,str):
         value=node.strip()
@@ -239,7 +239,7 @@ def fallback_models(project: Path)->tuple[list[str],list[str],set[str]]:
     auth_text=auth_list_text(project)
     authenticated={p for p in cache_providers if _provider_mentioned(auth_text,p)}
     active=configured_providers|authenticated
-    # Kritik güvenlik/UX kuralı: aktifliği doğrulanamayan cache provider'larını UI'a sızdırma.
+    # Kritik güvenlik/UX kuralı: aktifliği doğrulanamayan önbellek sağlayıcısı'larını UI'a sızdırma.
     candidates.update(m for m in cache_models if m.split('/',1)[0] in active)
     return sorted(candidates),checked,active
 
@@ -251,7 +251,7 @@ def discover(project: Path, refresh: bool=False)->dict:
         return {'ok':True,'source':'opencode-desktop-state','source_kind':'desktop-user-visibility-state',
                 'documented':False,'best_effort':True,'refreshed':False,'project':str(project),
                 'models':desktop,'count':len(desktop),'checked':checked_desktop,
-                'notice':'OpenCode Desktop yerel state içindeki visibility=show model tercihleri kullanıldı. Bu dosya public/stable OpenCode API değildir; salt-okunur kullanılır.'}
+                'notice':'OpenCode Desktop yerel durum verisindeki visibility=show model tercihleri kullanıldı. Bu dosya genel kullanıma açık/kararlı OpenCode API değildir; salt-okunur kullanılır.'}
     cli_cmd='opencode models --refresh' if refresh else 'opencode models'
     cli=models_from_cli(project,refresh=refresh)
     if cli:
@@ -263,10 +263,10 @@ def discover(project: Path, refresh: bool=False)->dict:
         return {'ok':True,'source':'configured-fallback','source_kind':'best-effort-config-cache','documented':False,
                 'best_effort':True,'refreshed':refresh,'project':str(project),'models':models,'count':len(models),
                 'active_providers':sorted(active),'checked':checked,
-                'notice':'OpenCode CLI model listesi alınamadı; yalnız yapılandırıldığı/bağlı olduğu doğrulanabilen provider verileri BEST-EFFORT fallback olarak kullanıldı. Cache formatı UNDOCUMENTED durumdadır.'}
+                'notice':'OpenCode CLI model listesi alınamadı; yalnız yapılandırıldığı/bağlı olduğu doğrulanabilen provider verileri EN İYİ ÇABA yedek kaynak olarak kullanıldı. Önbellek biçimi BELGELENMEMİŞ durumdadır.'}
     return {'ok':False,'source':None,'source_kind':None,'documented':False,'best_effort':False,
             'refreshed':refresh,'project':str(project),'models':[],'count':0,'checked':checked,
-            'message':'Bu proje için kullanılabilir OpenCode model listesi bulunamadı. Provider bağlantısını/config yapılandırmasını kontrol edin veya tam provider/model kimliğini elle girin.'}
+            'message':'Bu proje için kullanılabilir OpenCode model listesi bulunamadı. Sağlayıcı bağlantısını/yapılandırmayı kontrol edin veya tam sağlayıcı/model kimliğini elle girin.'}
 
 
 def main()->int:

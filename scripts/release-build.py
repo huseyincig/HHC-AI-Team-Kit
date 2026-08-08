@@ -5,7 +5,7 @@ from pathlib import Path
 
 KIT=Path(__file__).resolve().parents[1]
 DIST_DIRS=['roles','skills','commands','presets','scripts','bootstrap']
-DIST_FILES=['VERSION','README.md','README.en.md','KURULUM.md','INSTALLATION.md','SECURITY.md','CONTRIBUTING.md','LICENSE','THIRD_PARTY_NOTICES.md','CHANGELOG.md','HHC-KUR.cmd','HHC-KUR.sh','.gitignore']
+DIST_FILES=['VERSION','README.md','KURULUM.md','SECURITY.md','CONTRIBUTING.md','LICENSE','THIRD_PARTY_NOTICES.md','CHANGELOG.md','HHC-KUR.cmd','HHC-KUR.sh','.gitignore']
 SOURCE_DIRS=[*DIST_DIRS,'tests']
 SOURCE_FILES=[*DIST_FILES,'pytest.ini','requirements-dev.txt','.gitattributes']
 # Kişisel/geliştirme ortamı dosyaları hiçbir paylaşılabilir arşive girmez.

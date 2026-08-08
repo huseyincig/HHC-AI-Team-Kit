@@ -1,5 +1,5 @@
 ---
-name: code-review
+name: hhc-code-review
 description: Anlamlı kod değişikliklerini amaç, diff ve davranış riski açısından bağımsız incelemek için kullanılır.
 ---
 

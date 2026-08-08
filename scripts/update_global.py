@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""HHC global kit self-update. GitHub releases kontrolü → manifest+zip indir → sha256 doğrula → content-sync."""
+"""HHC global kit güncelleyicisi. GitHub sürüm kontrolü → manifest+zip indir → SHA-256 doğrula → içerik senkronu."""
 from __future__ import annotations
-import argparse, hashlib, json, os, shutil, sys, tempfile, urllib.error, urllib.request, zipfile
-from pathlib import Path
+import argparse, hashlib, json, os, re, shutil, sys, tempfile, urllib.error, urllib.request, zipfile
+from pathlib import Path, PurePosixPath
 
 # install_global.py ile aynı scripts/ dizininde; import sırasında KIT hesaplaması güvenli.
 from install_global import runtime_root, install_bootstrap
@@ -85,72 +85,115 @@ def _sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
+def _safe_manifest_rel(raw: str) -> str:
+    """Manifest yolunu platformdan bağımsız güvenli relative POSIX yoluna doğrular."""
+    if not isinstance(raw, str) or not raw or '\x00' in raw:
+        raise ValueError(f'Geçersiz manifest yolu: {raw!r}')
+    value=raw.replace('\\','/')
+    path=PurePosixPath(value)
+    if path.is_absolute() or any(part in ('','..') for part in path.parts):
+        raise ValueError(f'Güvensiz manifest yolu: {raw!r}')
+    if path.parts and len(path.parts[0]) >= 2 and path.parts[0][1] == ':':
+        raise ValueError(f'Güvensiz manifest drive yolu: {raw!r}')
+    return path.as_posix()
+
+
+def _validate_staging(staging: Path, manifest_files: dict[str, str]) -> dict[str, str]:
+    """Her manifest dosyasını current runtime'a dokunmadan önce existence + SHA ile doğrular."""
+    checked: dict[str, str] = {}
+    for raw, expected_sha in manifest_files.items():
+        rel=_safe_manifest_rel(raw)
+        if rel in checked:
+            raise ValueError(f'Yinelenen manifest yolu: {rel}')
+        if not isinstance(expected_sha,str) or not re.fullmatch(r'[0-9a-fA-F]{64}',expected_sha):
+            raise ValueError(f'Geçersiz SHA-256: {raw!r}')
+        src=staging.joinpath(*PurePosixPath(rel).parts)
+        if src.is_symlink() or not src.is_file():
+            raise ValueError(f'Manifest dosyası staging içinde yok veya güvenli değil: {rel}')
+        actual=_sha256_file(src)
+        if actual.lower()!=expected_sha.lower():
+            raise ValueError(f'Manifest dosya bütünlüğü hatası: {rel}')
+        checked[rel]=expected_sha.lower()
+    return checked
+
+def _atomic_copy(src: Path, dst: Path) -> None:
+    """Aynı dizindeki geçici dosya üzerinden atomik değişim yap; hata halinde hedefi bozma."""
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    tmp = dst.with_name(dst.name + '.hhc-new')
+    try:
+        shutil.copy2(src, tmp)
+        os.replace(tmp, dst)
+    finally:
+        try:
+            if tmp.exists():
+                tmp.unlink()
+        except OSError:
+            pass
+
+
 def _content_sync(staging: str | Path, current: str | Path,
                   manifest_files: dict[str, str], self_script: str) -> int:
-    """Manifest rehberli staging→current kopya; stale sil; self-skip; boş dizin temizle.
-    Dönen: swapped dosya sayısı."""
+    """Manifest rehberli senkronizasyon. Updater kendisini en son atomik olarak yeniler."""
     staging_path = Path(staging)
     current_path = Path(current)
     self_path = Path(self_script).resolve()
+    manifest_files = _validate_staging(staging_path, manifest_files)
     swapped = 0
+    self_item: tuple[Path, Path, str] | None = None
 
-    # 1. Manifest'teki her dosyayı kopyala/atla
     for rel_path, expected_sha in manifest_files.items():
-        dst = current_path / rel_path
-        src = staging_path / rel_path
+        rel_parts=PurePosixPath(rel_path).parts
+        dst = current_path.joinpath(*rel_parts)
+        src = staging_path.joinpath(*rel_parts)
         if not src.is_file():
             continue
-        # Kendi script'imizi atla (Windows self-kilit)
         try:
-            if dst.resolve() == self_path:
+            is_self = dst.resolve() == self_path
+        except Exception:
+            is_self = False
+        if is_self:
+            self_item=(src,dst,expected_sha)
+            continue
+        if not dst.is_file() or _sha256_file(dst) != expected_sha:
+            _atomic_copy(src,dst)
+            swapped += 1
+
+    # Çalışan updater en son değiştirilir. Başarısız olursa VERSION henüz ilerletilmediği için
+    # sonraki çalıştırma yeniden deneyebilir ve eski sağlam dosya korunur.
+    if self_item is not None:
+        src,dst,expected_sha=self_item
+        if not dst.is_file() or _sha256_file(dst) != expected_sha:
+            _atomic_copy(src,dst)
+            swapped += 1
+
+    current_files: set[str] = set()
+    for p in current_path.rglob('*'):
+        if p.is_file() and not p.name.endswith('.hhc-new'):
+            current_files.add(str(p.relative_to(current_path)).replace('\\','/'))
+    manifest_set = {k.replace('\\','/') for k in manifest_files}
+    for rel in sorted(current_files - manifest_set):
+        p_file=current_path/rel
+        try:
+            if p_file.resolve()==self_path:
                 continue
         except Exception:
             pass
-        need_copy = False
-        if not dst.is_file():
-            need_copy = True
-        else:
-            if _sha256_file(dst) != expected_sha:
-                need_copy = True
-        if need_copy:
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dst)
-            swapped += 1
-
-    # 2. Manifest'te olmayan current dosyalarını sil (stale)
-    current_files: set[str] = set()
-    for p in current_path.rglob('*'):
-        if p.is_file():
-            rel = str(p.relative_to(current_path)).replace('\\', '/')
-            try:
-                if p.resolve() == self_path:
-                    continue
-            except Exception:
-                pass
-            current_files.add(rel)
-
-    manifest_set = {k.replace('\\', '/') for k in manifest_files}
-    for rel in sorted(current_files - manifest_set):
-        p_file = current_path / rel
         try:
-            if p_file.is_file():
-                p_file.unlink()
-        except Exception:
+            p_file.unlink()
+        except OSError:
             pass
 
-    # 3. Boş dizin temizle (alttan yukarı)
     for p in sorted(current_path.rglob('*'), key=lambda x: len(x.parts), reverse=True):
-        if p.is_dir() and not any(p.iterdir()):
+        if p.is_dir():
             try:
-                p.rmdir()
-            except Exception:
+                if not any(p.iterdir()): p.rmdir()
+            except OSError:
                 pass
-
     return swapped
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description='HHC global kit self-update (GitHub releases)')
+    ap = argparse.ArgumentParser(description='HHC global kit güncellemesi (GitHub sürümleri)')
     ap.add_argument('--no-remote', action='store_true', help='Ağ kontrolünü atla, yalnız yerel')
     ap.add_argument('--token', default=os.environ.get('HHC_GITHUB_TOKEN', ''),
                     help='GitHub token (varsayılan HHC_GITHUB_TOKEN env)')
@@ -185,7 +228,7 @@ def main() -> int:
     release, err = _fetch_json(api_url, token, args.timeout)
 
     if err:
-        # Non-fatal: ağ/API hatası → fallback
+        # Öldürücü olmayan ağ/API hatası → yerel davranışa dön
         err_lower = err.lower()
         if 'rate limited' in err_lower:
             status = 'RATE_LIMITED'
@@ -248,13 +291,14 @@ def main() -> int:
 
     manifest_asset = None
     zip_asset = None
-    manifest_name = f'RELEASE-MANIFEST-{tag_name}.json'
-    zip_name = f'HHC-AI-Team-Kit-{tag_name}.zip'
+    release_version = tag_name.lstrip('vV')
+    manifest_names = {f'RELEASE-MANIFEST-{release_version}.json', f'RELEASE-MANIFEST-{tag_name}.json'}
+    zip_names = {f'HHC-AI-Team-Kit-{release_version}.zip', f'HHC-AI-Team-Kit-{tag_name}.zip'}
     for a in assets:
         aname = a.get('name', '')
-        if aname == manifest_name:
+        if aname in manifest_names:
             manifest_asset = a
-        elif aname == zip_name:
+        elif aname in zip_names:
             zip_asset = a
 
     if not manifest_asset or not zip_asset:
@@ -314,10 +358,16 @@ def main() -> int:
         # Zip aç ve content-sync
         staging = Path(tmpdir) / 'staging'
         staging.mkdir()
-        with zipfile.ZipFile(zip_path, 'r') as zf:
-            zf.extractall(staging)
-
-        swapped = _content_sync(staging, current_path, manifest_files, __file__)
+        try:
+            with zipfile.ZipFile(zip_path, 'r') as zf:
+                zf.extractall(staging)
+            swapped = _content_sync(staging, current_path, manifest_files, __file__)
+        except (OSError, ValueError, zipfile.BadZipFile) as e:
+            result = {'status': 'ERROR', 'current_version': current_ver,
+                      'latest_version': tag_name,
+                      'error': f'Release içerik doğrulaması başarısız: {e}'}
+            print(json.dumps(result, ensure_ascii=False))
+            return 0
 
         # VERSION'ı güncelle (lstrip 'vV' ile normalize)
         new_ver = tag_name.lstrip('vV')

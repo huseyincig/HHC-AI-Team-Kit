@@ -1,5 +1,5 @@
 ---
-name: regression-review
+name: hhc-regression-review
 description: Değişikliğin komşu davranışları bozup bozmadığını riskle orantılı kapsamda kontrol etmek için kullanılır.
 ---
 

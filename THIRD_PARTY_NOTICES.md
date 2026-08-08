@@ -1,8 +1,8 @@
-# Third-Party Notices and Research Provenance
+# Üçüncü Taraf Bildirimleri ve Araştırma Kaynakları
 
-HHC AI Team Kit is an **original Apache-2.0 implementation**. The repositories below were statically studied as design evidence. No repository was copied wholesale, no audited installer was executed, and no source code or prompt text from the restricted `oh-my-openagent` license was incorporated.
+HHC AI Team Kit, **özgün bir Apache-2.0 uygulamasıdır**. Aşağıdaki depolar tasarım kanıtı olarak statik biçimde incelenmiştir. Hiçbir depo topluca kopyalanmamış, incelenen kurucular çalıştırılmamış ve kısıtlı `oh-my-openagent` lisansından kaynak kodu veya istem metni alınmamıştır.
 
-| Source | Audited revision | License observed | Use in HHC AI Team Kit |
+| Kaynak | İncelenen revizyon | Gözlenen lisans | HHC AI Team Kit içindeki kullanım |
 |---|---|---|---|
 | `defuj/opencode-agent-kit` | `79ff74afbd07c45203c35164f5671e28577e65e2` | MIT | OpenCode file/frontmatter patterns and visual-evidence ideas; independently reimplemented |
 | `rjmurillo/ai-agents` | `b22b19b63c077dd841bdcda07d0bc160068add36` | MIT | Independent reviewer, evidence gate, handoff and push-guard ideas |
@@ -16,4 +16,4 @@ HHC AI Team Kit is an **original Apache-2.0 implementation**. The repositories b
 | `OpenBMB/ChatDev` | `4fb2db0ea90375ce1059f44fe03ffbd191a7a169` | Apache-2.0 | Phase/team orchestration ideas only; unsandboxed executor rejected |
 | `code-yeongyu/oh-my-openagent` | `123e3b230c30e8b3682b2dec5daa8fefc37ca7ee` | Sustainable Use License 1.0 plus third-party notices | Ideas only, no copying; telemetry and browser-cookie features rejected |
 
-Names and repository identifiers remain the property of their respective owners. Consult each source repository for its complete license text and third-party notices.
+Adlar ve depo kimlikleri ilgili sahiplerinin mülkiyetindedir. Tam lisans metinleri ve üçüncü taraf bildirimleri için ilgili kaynak depolara başvurun.

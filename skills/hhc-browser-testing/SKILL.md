@@ -1,5 +1,5 @@
 ---
-name: browser-testing
+name: hhc-browser-testing
 description: Mevcut tarayıcı/Playwright/MCP aracıyla gerçek arayüz akışlarını test etmek için kullanılır.
 ---
 

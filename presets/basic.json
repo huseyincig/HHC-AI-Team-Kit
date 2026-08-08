@@ -1,6 +1,6 @@
 {
   "name": "basic",
-  "kit_version": "1.2.3",
+  "kit_version": "1.3.6",
   "roles": [
     "manager",
     "architect",
@@ -11,21 +11,24 @@
     "security-reviewer"
   ],
   "skills": [
-    "task-classification",
-    "repository-analysis",
-    "implementation-planning",
-    "safe-refactoring",
-    "code-review",
-    "test-strategy",
-    "regression-review",
-    "visual-qa",
-    "accessibility-review",
-    "browser-testing",
-    "security-review",
-    "release-guardrails",
-    "changelog-and-documentation"
+    "hhc-task-classification",
+    "hhc-repository-analysis",
+    "hhc-implementation-planning",
+    "hhc-safe-refactoring",
+    "hhc-code-review",
+    "hhc-test-strategy",
+    "hhc-regression-review",
+    "hhc-visual-qa",
+    "hhc-accessibility-review",
+    "hhc-browser-testing",
+    "hhc-security-review",
+    "hhc-release-guardrails",
+    "hhc-changelog-and-documentation"
   ],
-  "commands": ["team-status", "team-review"],
+  "commands": [
+    "hhc-team-status",
+    "hhc-team-review"
+  ],
   "policy": {
     "specialist_threshold": "high",
     "parallelism": "conservative",
