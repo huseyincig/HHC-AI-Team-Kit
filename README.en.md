@@ -2,7 +2,7 @@
 
 [Türkçe](README.md) | [English](README.en.md)
 
-**Version: 1.2.1**
+**Version: 1.2.2**
 
 HHC AI Team Kit installs a small, SMART, model- and provider-independent AI software team into OpenCode projects. It uses OpenCode's native primary/subagent, Task, skill, command, and permission mechanisms instead of building a second orchestration framework.
 
@@ -150,6 +150,8 @@ Architecture → implementation → tests and conflicting file edits remain sequ
 `/hhc-reconfigure` changes the profile, model assignments, Scout/Playwright choices, and Advanced Configuration overrides while safely migrating legacy profiles.
 
 `/hhc-update` synchronizes to a newer kit version while preserving state.
+
+`/hhc-status` reports the current HHC configuration status read-only (version, profile, roles, models, Scout, Playwright, MCP).
 
 ## Technical Notes
 

@@ -191,9 +191,65 @@ def main()->int:
     ap.add_argument('--model-metadata-file',type=Path,help='Test/offline doğrulama için models.dev api.json uyumlu metadata dosyası')
     ap.add_argument('--reconfigure',action='store_true',help='Mevcut HHC ekibini güvenli biçimde yeniden yapılandır')
     ap.add_argument('--update',action='store_true',help="Mevcut state'i koruyarak proje dosyalarını yeni kit ile sessizce senkronla (interaktif değil).")
+    ap.add_argument('--status',action='store_true',help='Mevcut HHC yapılandırma durumunu raporla (salt-okunur)')
     ap.add_argument('--force',action='store_true',help='Çakışan HHC hedef dosyalarının üzerine yaz')
     ap.add_argument('--dry-run',action='store_true')
     args=ap.parse_args()
+    if args.status:
+        if args.reconfigure or args.update: raise InstallError('--status ile --update/--reconfigure birlikte kullanılamaz.')
+        project=safe_project(args.project_path); state=load_state(project)
+        if not state:
+            print('Bu projede HHC kurulu değil. /hhc-install kullanın.')
+            return 0
+        current_version=(KIT/'VERSION').read_text(encoding='utf-8').strip()
+        kit_version=state.get('kit_version','?')
+        synced=' (senkron)' if kit_version==current_version else ' (eski)'
+        profile=state.get('profile') or state.get('preset','standard')
+        profile_desc={'basic':'Maliyet ve bağlam ekonomisi öncelikli','standard':'Dengeli SMART çalışma','powerful':'Kalite ve güvence öncelikli'}.get(profile,'?')
+        team_mode=state.get('team_mode','?')
+        manager_mode=state.get('manager_mode','?')
+        primary=state.get('primary_agent','?')
+        roles=state.get('roles',[])
+        models=state.get('models',{})
+        scout_enabled=state.get('scout_enabled',False)
+        scout_model=state.get('scout_model')
+        playwright_enabled=state.get('playwright_enabled',False)
+        managed_count=len(state.get('managed_files',[]))
+        config_created=state.get('config_created_by_hhc',False)
+        print('HHC AI Team Kit — Yapılandırma Durumu')
+        print('======================================')
+        print(f'Proje sürümü (state): {kit_version}')
+        print(f'Global kit sürümü: {current_version}{synced}')
+        print()
+        print(f'Profil: {profile} ({profile_desc})')
+        print(f'Çalışma biçimi: {team_mode}')
+        print(f'Yönetici: {manager_mode} (primary: {primary})')
+        print()
+        print(f'Roller ve modeller ({len(roles)} rol):')
+        for role in roles:
+            model=models.get(role)
+            label=f'{model}' if model else '(inherit)'
+            print(f'  - {role:<24} -> {label}')
+        print()
+        if scout_enabled:
+            sm=f' + model: {scout_model}' if scout_model else ''
+            print(f'Scout: AÇIK{sm}')
+        else:
+            print('Scout: KAPALI')
+        pw_suffix=''
+        if playwright_enabled:
+            sc=state.get('project_characteristics',{})
+            bu=sc.get('browser_ui',{})
+            pw_suffix=f' + browser_ui: {"doğrulandı" if bu.get("detected") else "?"}'
+            print(f'Playwright: AÇIK{pw_suffix}')
+        else:
+            print('Playwright: KAPALI')
+        print()
+        has_mcp=scout_enabled or playwright_enabled
+        print(f'MCP: {"var" if has_mcp else "yok"}' + (' [scout/playwright aux config]' if has_mcp else ''))
+        print(f'HHC-managed dosyalar: {managed_count}')
+        print(f'Config: {"HHC-created" if config_created else "kullanıcı"}')
+        return 0
     if args.update and args.reconfigure: raise InstallError('--update ve --reconfigure birlikte kullanılamaz.')
     reconfigure_like=args.reconfigure or args.update
     try:

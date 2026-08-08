@@ -1399,7 +1399,7 @@ def test_update_global_up_to_date_syncs_bootstrap_to_global_config(tmp_path, mon
     bootstrap_commands.mkdir(parents=True)
     bootstrap_skill.mkdir(parents=True)
 
-    cmd_files = ['hhc-install.md', 'hhc-install-remote.md', 'hhc-reconfigure.md', 'hhc-update.md']
+    cmd_files = ['hhc-install.md', 'hhc-install-remote.md', 'hhc-reconfigure.md', 'hhc-update.md', 'hhc-status.md']
     for cmd in cmd_files:
         (bootstrap_commands / cmd).write_text(
             f'# {cmd}\n\nTest content with {{{{KIT_ROOT}}}} and {{{{PYTHON}}}} placeholders.\n',
@@ -1707,3 +1707,43 @@ def test_profile_policy_injected_once_and_only_to_managers(tmp_path):
             continue
         text=agent.read_text(encoding='utf-8')
         assert 'Çalışma Profili:' not in text, f'{role} should not have policy overlay'
+
+
+# ── /hhc-status tests ──
+
+def test_status_reports_kit_version_and_roles_and_models(tmp_path):
+    p=tmp_path/'app'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','standard',
+          '--model','working-manager=provider/mgr','--model','coder=provider/coder','--model','qa-reviewer=provider/qa')
+    assert r.returncode==0, r.stderr
+    r=run(KIT/'scripts/install.py','--project-path',p,'--status')
+    assert r.returncode==0, r.stderr
+    out=r.stdout
+    kit_version=(KIT/'VERSION').read_text(encoding='utf-8').strip()
+    assert kit_version in out
+    assert 'Proje sürümü (state):' in out
+    assert 'Global kit sürümü:' in out
+    assert 'working-manager' in out and 'coder' in out and 'qa-reviewer' in out
+    assert 'provider/mgr' in out and 'provider/coder' in out and 'provider/qa' in out
+    assert 'Scout:' in out
+    assert 'KAPALI' in out
+    assert 'Profil:' in out and 'standard' in out
+
+def test_status_requires_state(tmp_path):
+    p=tmp_path/'app'; p.mkdir()
+    r=run(KIT/'scripts/install.py','--project-path',p,'--status')
+    assert r.returncode==0, r.stderr
+    assert 'kurulu değil' in r.stdout or 'HHC kurulu değil' in r.stdout
+
+def test_status_does_not_write_files(tmp_path):
+    p=tmp_path/'app'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','standard')
+    assert r.returncode==0, r.stderr
+    state_before=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
+    before_managed=set(state_before.get('managed_files',[]))
+    r=run(KIT/'scripts/install.py','--project-path',p,'--status')
+    assert r.returncode==0, r.stderr
+    state_after=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
+    after_managed=set(state_after.get('managed_files',[]))
+    assert before_managed==after_managed
+    assert state_before['kit_version']==state_after['kit_version']

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.2
+
+- feat: /hhc-status komutu ve install.py --status — mevcut HHC yapılandırma durumunu salt-okunur raporlar (sürüm, profil, roller, modeller, Scout, Playwright, MCP).
+
 ## 1.2.1
 
 - fix: `update_global` artık her non-fatal durumda `install_bootstrap` çağırıyor — UP_TO_DATE/OFFLINE/NO_RELEASES/RATE_LIMITED sonrası global OpenCode config current ile senkronize. Daha önce UP_TO_DATE'te atlanıyordu, eski komut dosyaları kalabiliyordu.
