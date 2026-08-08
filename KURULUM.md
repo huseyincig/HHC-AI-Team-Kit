@@ -1,92 +1,149 @@
 # Kurulum
 
-## 1. Makineye bir kez kur
+[README](README.md) | [English installation guide](INSTALLATION.md)
 
-Windows: `HHC-KUR.cmd`  
-macOS/Linux: `./HHC-KUR.sh`
+## 1. Önerilen: GitHub üzerinden makine kurulumu
 
-Global komutlar:
+### Windows
+
+```powershell
+git clone https://github.com/huseyincig/HHC-AI-Team-Kit.git
+cd HHC-AI-Team-Kit
+HHC-KUR.cmd
+```
+
+### macOS / Linux
+
+```bash
+git clone https://github.com/huseyincig/HHC-AI-Team-Kit.git
+cd HHC-AI-Team-Kit
+./HHC-KUR.sh
+```
+
+Gereksinimler: Git ve Python 3.9+.
+
+## 2. Alternatif: ZIP ile kurulum
+
+1. Güncel Release ZIP'ini indirin.
+2. ZIP'i çıkarın.
+3. Windows'ta `HHC-KUR.cmd`, macOS/Linux'ta `./HHC-KUR.sh` çalıştırın.
+
+Makine kurulumu şu global OpenCode komutlarını ekler:
+
 - `/hhc-install`
 - `/hhc-install-remote`
 - `/hhc-reconfigure`
+- `/hhc-update`
 
-## 2. Yeni projeye kur
+## 3. Hedef projeye kurulum
 
-OpenCode'da projeyi aç ve `/hhc-install` çalıştır.
+Projeyi OpenCode'da açın:
 
-### Adım 1 — Profil
+```text
+/hhc-install
+```
 
-İlk soru her zaman profildir: Minimal, Standard, Web Development, Desktop Development, High Assurance veya Özel. Hazır profil kendi rol havuzunu belirlediği için ayrıca rol sorulmaz. Yalnız Özel profilde uzmanlar seçilir.
+### Adım 1 — Çalışma profili
 
-### Adım 2 — Çalışma biçimi
+Yalnız üç profil vardır:
 
-Yalnız iki seçenek vardır:
+- **Basic:** maliyet/bağlam öncelikli; uzman ve paralellik eşiği yüksektir.
+- **Standard:** **varsayılan/önerilen** dengeli SMART çalışma.
+- **Powerful:** kalite/güvence öncelikli; bağımsız yüksek değerli işlerde daha istekli paralellik ve doğrulama.
 
-- **Tek Ana Ajan:** primary otomatik **Çalışan Yönetici** olur; profil uzmanları yine kurulur ve gerektiğinde subagent olarak kullanılabilir.
-- **Çoklu Ajan Ekibi:** yönetici tipi Çalışan Yönetici veya Orkestratör seçilir.
+Profil rol kadrosu değildir. Üçünde de temel specialist roller erişilebilir kalır.
 
-Tam bağımsız/alt ajanları kapatan üçüncü bir solo seçenek yoktur.
+### Adım 2 — Proje özellikleri otomatik algılanır
+
+Kullanıcıdan Web/Desktop seçimi istenmez. HHC repo sinyallerinden çoklu özellik çıkarır:
+
+`browser_ui`, `desktop_ui`, `backend`, `cli`, `library`, `database`, `wordpress`, `containerized`, `mobile`.
+
+Bir proje aynı anda birden fazla özelliğe sahip olabilir.
 
 ### Adım 3 — Scout
 
-Kurulumda **OpenCode Scout kullanılsın mı?** sorulur. Varsayılan **Hayır**'dır. Scout yalnız harici dokümantasyon, dependency ve upstream kaynak araştırması içindir; local repository araştırmaları `repository-explorer` ile yapılır. Scout = Evet ise model adımında Scout için ayrıca bağımsız model seçilir.
+**OpenCode Scout kullanılsın mı?** Varsayılan **Hayır**.
 
-### Adım 4 — Modeller
+Scout profile bağlı değildir. Harici/güncel dokümantasyon ve dependency/upstream araştırması için kullanılır; yerel repo keşfi `repository-explorer` ile yapılır. Açılırsa Scout modeli ayrıca seçilir.
 
-`scripts/model_discovery.py --project-path <proje>` Windows OpenCode Desktop state'i bulunursa önce `%APPDATA%\ai.opencode.desktop\opencode.global.dat` içindeki `model.user[]` kayıtlarını okur ve yalnız `visibility == "show"` olan `providerID/modelID` çiftlerini gösterir. Bu dosya OpenCode'un public/stable API'si olmadığı için salt-okunur **BEST-EFFORT** kaynak kabul edilir. Desktop state yoksa/boşsa resmî `opencode models` komutuna geçilir. CLI başarısızsa yerel cache yine **UNDOCUMENTED / BEST-EFFORT** fallback'tir; cache'de bulunmak tek başına kullanılabilirlik kanıtı değildir ve yalnız config veya resmî auth görünümüyle aktifliği doğrulanabilen provider'lar kullanılır.
+### Adım 4 — Playwright
 
-Kullanıcı isterse bir kez `opencode models --refresh` denenebilir; otomatik çalışmaz.
+Yalnız `browser_ui` doğrulanırsa **Playwright MCP kullanılsın mı?** sorulur. Varsayılan **Hayır**.
 
-- **Tek Ana Ajan:** bir model seçilir, bütün kurulu HHC rolleri aynı modeli kullanır. Scout açıksa bu ortak model Scout'a otomatik uygulanmaz; Scout modeli ayrıca seçilir.
-- **Çoklu Ajan:** doğrudan her kurulu role model seçilir. Scout açıksa ayrıca Scout / Dış Araştırma modeli seçilir.
+Açıldığında Playwright proje-local kurulur; `playwright_*` araçları yalnız `visual-qa` rolüne açılır. Browser UI yoksa normal kurulum bu soruyu göstermez.
 
-Ayrı `model politikası`, `OpenCode'u devral`, ekip varsayılan modeli veya “hangi roller farklı olsun?” adımı yoktur.
+### Adım 5 — Modeller
 
-### Türkçe rol adları
+Model keşfi ve `model_advisor.py` kullanılarak kurulu roller için model seçilir. Normal akışta her rolün modeli ayrı seçilir; profile göre otomatik pahalı model yükseltmesi yapılmaz.
 
-Wizard teknik ID yerine şu görünen adları kullanır: Çalışan Yönetici, Orkestratör, Mimar, Depo Gezgini, Kodlayıcı, Kalite İnceleyici, Görsel QA, Güvenlik İnceleyici.
+Scout açıksa Scout modeli ayrıca seçilir.
 
-## 3. Özel profil davranışı
+### Normal primary ve ekip davranışı
 
-Seçilmeyen uzman rol, ilgili işin yapılamayacağı anlamına gelmez. Manager önce mevcut agent ve native araçlarla görevin güvenilir biçimde tamamlanıp tamamlanamayacağını değerlendirir. Basit dosya araması için Depo Gezgini, basit UI kontrolü için Görsel QA veya küçük test için bağımsız QA otomatik zorunlu değildir.
+Yeni normal UX'te **Tek Ana Ajan / Çoklu Ajan** ayrı ana soru değildir. Varsayılan çalışma:
 
-Uzman gerçekten gerekli ve mevcut ekip güvenilir sonuç üretemiyorsa `/hhc-reconfigure` ile rol eklenmesi önerilebilir.
+- primary: **Çalışan Yönetici (`working-manager`)**
+- backend: `multi + hands_on`
+- bütün temel specialist roller erişilebilir
+- hangi specialist'in çağrılacağı SMART tarafından görev bazında belirlenir
 
-## 4. Yeniden yapılandırma
+Eski `single|multi`, shared model ve salt orkestratör primary seçenekleri yalnız migration/Advanced Configuration amacıyla backend'de korunur.
+
+## 4. Advanced Configuration
+
+Eski **Custom** profil artık ana profil değildir.
+
+İleri düzey kullanıcı açıkça isterse:
+
+- specialist havuzunu `--roles` ile daraltabilir,
+- primary'ı `manager`/orkestratör yapabilir,
+- tek ortak model kullanabilir,
+- proje özelliğine explicit override ekleyebilir.
+
+Bu ayarlar Basic/Standard/Powerful profilinin yerine geçmez.
+
+## 5. Parallelism ve background
+
+HHC background subagent kullanımını desteklenen çalışma davranışı kabul eder. Yalnız parent'ın beklemeden sürdürebileceği, bağımsız ve file/state çakışması üretmeyecek işler paralelleştirilir.
+
+Bağımlı aşamalar ve aynı dosyada edit yapan ajanlar sıralı kalır. Powerful her rolü çalıştırmaz ve aynı rolü varsayılan iki kez çağırmaz.
+
+## 6. Legacy profile migration
+
+- `minimal` → `basic`
+- `standard` → `standard`
+- `high-assurance` → `powerful`
+- `web-development` → `standard` + `browser_ui`
+- `desktop-development` → `standard` + `desktop_ui`
+- `custom` → `standard` + eski specialist listesi Advanced Configuration olarak korunur
+
+Eski role/model/Scout/Playwright seçimleri migration sırasında kaybedilmemelidir.
+
+## 7. Yeniden yapılandırma
 
 ```text
 /hhc-reconfigure
 ```
 
-Yeni kurulumla aynı sıra kullanılır: Profil → yalnız Custom ise roller → Tek Ana/Çoklu → gerekirse yönetici → Scout Evet/Hayır → modeller. Scout durumu ve modeli sonradan değiştirilebilir. Eski rc.16 solo state'i yeniden yapılandırılırken HHC-owned dosyalar güvenli biçimde yeni yapıya taşınır.
+Profil, model atamaları, Scout/Playwright ve Advanced Configuration ayarlarını güvenli biçimde değiştirir.
 
-## 5. Mevcut `opencode.jsonc`
+## 8. Güncelleme
 
-Mevcut kök config sessizce ezilmez. Scout açıksa HHC `.opencode/opencode.jsonc` içinde yalnız native `scout` model override'ını yönetir; kullanıcıya ait aynı dosya varsa ezmek yerine güvenli hata verir. Scout kapatılınca yalnız HHC-owned Scout override kaldırılır. Config yoksa HHC `default_agent`, `subagent_depth: 1` ve `compaction.auto/prune` içeren küçük config oluşturur; `reserved` eklemez.
+```text
+/hhc-update
+```
 
-## 6. Windows, Desktop ve WSL
+Mevcut state'i koruyarak yeni HHC sürümüne eşitler.
 
-Native Windows/OpenCode Desktop ile WSL içinde çalışan OpenCode backend'i farklı kullanıcı ortamlarıdır. Desktop WSL içindeki `opencode serve` backend'ine bağlanıyorsa HHC global bootstrap WSL içinde de ayrıca kurulmalıdır. Linux/container testi native Windows Desktop PASS sayılmaz.
+## 9. Mevcut `opencode.jsonc`
 
-## 7. Uzak kod deposu
+Kullanıcının mevcut yapılandırması sessizce ezilmez. `subagent_depth: 1` korunur.
+
+## 10. Uzak hedef repo
 
 ```text
 /hhc-install-remote <git-url>
 ```
 
-Uzak kurulum klonlamadan sonra aynı rc.17 wizard karar ağacını kullanır.
-
-## Çoklu ajan model seçimi
-
-Çoklu Ajan Ekibinde kurulu her rol için model ayrı seçilir. Bir rolün modeli diğer rollere otomatik uygulanmaz ve bütün rol-model eşlemeleri tamamlanmadan kurulum onayına geçilmez.
-
-
-## Model capability doğrulaması
-
-Etkileşimli kurulumda model listesi `model_advisor.py` üzerinden zenginleştirilir. Advisor mevcut `model_discovery.py` kaynaklarını kullanır; models.dev erişilemezse model keşfi çalışmaya devam eder. `INCOMPATIBLE` model zorunlu capability'yi açıkça karşılamaz; `WARNING` ise metadata eksik/belirsizdir ve açık kullanıcı onayıyla kullanılabilir. Runtime model router yoktur.
-
-## Playwright MCP
-
-Yalnız `web-development` profilinde sorulur ve varsayılan **Hayır**dır. Evet seçilirse `--playwright enabled` ile project-local Microsoft Playwright MCP yazılır. Global `playwright_*: deny` kuralı ve Visual QA'da agent-level allow override kullanılır. Reconfigure ile açılıp kapatılabilir. Web dışı profilde etkinleştirilemez.
-
-PHP/SQL/Docker/WordPress/Git için ayrı MCP kurulmaz; ilgili CLI araçları kullanılır.
+Bu komut hedef Git reposunu klonlar ve aynı Basic/Standard/Powerful SMART kurulum akışını uygular.

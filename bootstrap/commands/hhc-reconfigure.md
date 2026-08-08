@@ -1,48 +1,42 @@
 ---
-description: Mevcut HHC ekip profilini, çalışma biçimini ve model dağılımını değiştir
+description: Mevcut HHC çalışma profilini, gelişmiş ayarları ve model dağılımını değiştir
 ---
 
 # HHC AI Team Kit — Yeniden Yapılandırma
 
-`.opencode/hhc-team.json` dosyasını oku. Yoksa `/hhc-install` öner; varsayım yaparak dosya silme.
+Yeni kurulumla **aynı karar ağacını** kullan; yalnız mevcut state değerlerini başlangıç seçimi olarak koru ve legacy migration uygula.
 
-Yeni kurulumla **aynı karar ağacını** kullan. Eski rc.16 state'inde `solo-agent`, `inherit/shared/per-role` gibi teknik alanlar bulunabilir; bunları okuyabilirsin ama kullanıcıya eski UX'i yeniden gösterme.
+`.opencode/hhc-team.json` dosyasını oku. Yoksa `/hhc-install` öner.
 
-## Akış
+## Migration
 
-1. Önce profil: Minimal / Standard / Web Development / Desktop Development / High Assurance / Özel.
-2. Yalnız Özel profilde uzman rollerini Türkçe görünen adlarla seçtir. Hazır profilde rol sorusu yok.
-3. Çalışma biçimi: **Tek Ana Ajan** veya **Çoklu Ajan Ekibi**.
-4. Tek Ana Ajan ise primary otomatik Çalışan Yönetici; yönetici tipi sorma. Çoklu Ajanda Çalışan Yönetici / Orkestratör sor.
-5. Mevcut state'teki `scout_enabled` / `scout_model` değerini göster ve **Scout kullanımı: Evet / Hayır** sorusunu sor. Preset Scout'u otomatik açmaz. Hayır ise Scout modeli sorma; Evet ise model keşfinden sonra Scout için ayrı model seç.
-6. Web Development profilinde mevcut `playwright_enabled` durumunu göster ve **Playwright MCP: Evet / Hayır** sor. Web dışı profilde sorma ve Playwright disabled olsun.
-7. Model keşfi + capability/context/maliyet danışmanını `{{PYTHON}} "{{KIT_ROOT}}/scripts/model_advisor.py" --project-path . --role <kurulu-role> ... [--role scout]` ile yap. Windows OpenCode Desktop'ta `%APPDATA%\ai.opencode.desktop\opencode.global.dat` içindeki `model.user[]` kayıtlarından `visibility=show` modeller varsa bunlar önceliklidir; yoksa CLI/cache fallback akışı kullanılır.
-8. Tek Ana Ajanda bir model seç ve bütün rollere uygula. Çoklu Ajanda kurulu her rol için ayrı model cevabı topla; bütün roller model almadan devam etme.
-9. Özet + **Uygula / Geri dön / İptal**.
+Legacy profile'ları kullanıcıya yeniden seçenek olarak gösterme:
+- `minimal` → `basic`
+- `standard` → `standard`
+- `high-assurance` → `powerful`
+- `web-development` → `standard` + `browser_ui` migration sinyali
+- `desktop-development` → `standard` + `desktop_ui` migration sinyali
+- `custom` → `standard` + mevcut specialist listesi Advanced Configuration olarak korunur
 
-Normal UX'te şunları SORMA:
-- Model politikası
-- OpenCode modelini devral
-- Tek model tüm ekipte mi
-- Hangi roller varsayılandan farklı olsun
-- Tam bağımsız tek ajan
+## Normal akış
 
-Scout = Evet ise **Scout / Dış Araştırma** modeli de bağımsız bir `provider/model` kararıdır. Mevcut Scout modeli varsa başlangıç seçimi olarak göster/koru; kullanıcı değiştirebilir. Scout = Hayır seçilirse HHC-owned Scout override kaldırılır ve diğer config/rol modelleri korunur.
+1. Profil: **Basic / Standard / Powerful**. Standard varsayılandır.
+2. `project_characteristics.py --project-path . --legacy-profile <eski-profil>` ile çoklu proje özelliklerini yeniden çıkar; kullanıcıya proje türü seçtirme.
+3. Normal UX'te **Tek Ana Ajan / Çoklu Ajan** sorusu sorma. Mevcut legacy state desteklenir; kullanıcı özellikle değiştirmek istemiyorsa model/primary tercihini koru. Yeni normal kurulum davranışı `multi + hands_on`dır.
+4. Mevcut `scout_enabled` / `scout_model` durumunu göster ve **Scout / Dış Araştırma: Evet/Hayır** sor. Scout profile bağlı değildir.
+5. `browser_ui` doğrulanıyorsa Playwright mevcut durumunu göster ve **Evet/Hayır** sor. Browser UI yoksa yeni Playwright açma; legacy web migration ile kanıt varsa korunabilir.
+6. Model advisor çalıştır. **Kurulu ekipte N rol varsa N ayrı model kararı alınmalıdır.** Mevcut role model atamalarını başlangıç seçimi olarak koru ve bir rolün modelini diğerine sessizce kopyalama. Kullanıcı istemeden pahalı modele geçme.
+7. Normal akışta tüm specialist roller erişilebilir kalır. Rol havuzunu daraltma yalnız Advanced Configuration'dır.
+8. Özet + **Uygula / Geri dön / İptal**.
 
-Advisor `INCOMPATIBLE` döndürdüğü modeli seçtirme. `WARNING`/UNKNOWN için kullanıcıdan explicit **Yine de kullan** kararı al. Metadata servisi erişilemezse kurulum fail olmasın. Model keşfi başarısızsa loop'a girme. Kullanıcı açıkça isterse bir kez normal yeniden deneme veya bir kez `model_discovery.py --project-path . --refresh`; yine sonuç yoksa elle tam `provider/model` veya iptal.
+Windows Desktop model keşfinde `opencode.global.dat` içindeki `visibility=show` kayıtları BEST-EFFORT; ardından resmî CLI, son çare olarak UNDOCUMENTED/BEST-EFFORT cache akışı kullanılır.
 
-Eski `single + solo-agent` state'i reconfigure edilirken sessizce dosya kaybetme. Kullanıcının yeni seçimine göre installer `--reconfigure` ile eski HHC-owned `solo-agent.md` dosyasını kaldırıp yeni `working-manager + profil uzmanları` yapısına güvenle geçsin.
+## Advanced Configuration
 
-## Çoklu Ajan model eşlemesi — tek geçerli akış
+Eski Custom davranışı burada yaşar. Kullanıcı açıkça isterse `--roles` ile specialist havuzunu sınırla; mevcut custom migration'da eski rol listesi kaybolmamalı.
 
-Kurulu ekipte N rol varsa N ayrı model kararı alınmalıdır. Her rol için Türkçe görünen adıyla `Bu rol hangi modeli kullansın?` sorusunu sor. Bir rolün cevabını başka role otomatik uygulama. Manuel giriş de rol bazındadır. Son onaya ancak bütün kurulu rollerin `provider/model` değeri belirlendikten sonra geç. Backend'e kurulu her rol için açık `--model role=provider/model` argümanı gönder.
+Backend:
 
-## Backend
+`{{PYTHON}} "{{KIT_ROOT}}/scripts/install.py" --project-path . --reconfigure --team-mode multi --manager-mode hands_on --preset <basic|standard|powerful> [--roles <advanced-specialists>] --model role=provider/model ... --scout <enabled|disabled> [--scout-model provider/model] --playwright <enabled|disabled> --validate-model-capabilities`
 
-Tek Ana Ajan:
-`{{PYTHON}} "{{KIT_ROOT}}/scripts/install.py" --project-path . --reconfigure --team-mode single --preset <profil> [--roles <custom-uzmanlar>] --shared-model provider/model --scout <enabled|disabled> [--scout-model provider/model] --playwright <enabled|disabled> --validate-model-capabilities`
-
-Çoklu Ajan:
-`{{PYTHON}} "{{KIT_ROOT}}/scripts/install.py" --project-path . --reconfigure --team-mode multi --preset <profil> --manager-mode <mod> [--roles <custom-uzmanlar>] --model role=provider/model ... --scout <enabled|disabled> [--scout-model provider/model] --playwright <enabled|disabled> --validate-model-capabilities`
-
-Installer yalnız HHC'nin yönettiği eski dosyaları yeni seçimle uyumlu hale getirir; kullanıcıya ait başka `.opencode` dosyalarına dokunma. `config.action` `preserved-existing-config` ise mevcut `opencode.jsonc` dosyasının korunup HHC config varsayılanlarının bu dosyaya yazılmadığını açıkça bildir.
+Legacy `single`/shared-model state'leri güvenli biçimde korunabilir. Kullanıcı açıkça yeni normal akışa geçmek isterse `multi + hands_on` kullan.

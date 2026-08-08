@@ -1,83 +1,190 @@
 # HHC AI Team Kit
 
-**Sürüm: 1.1.1**
+[Türkçe](README.md) | [English](README.en.md)
 
-HHC AI Team Kit, OpenCode projelerine küçük ve model/sağlayıcı bağımsız bir yapay zekâ yazılım ekibi kurar. OpenCode'un native primary/subagent, Task, skill, command ve permission mekanizmalarını kullanır; ikinci bir görev/kanıt framework'ü kurmaz.
+**Sürüm: 1.2.0**
 
-## Kurulum asistanı
+HHC AI Team Kit, OpenCode projelerine küçük, SMART ve model/sağlayıcı bağımsız bir yapay zekâ yazılım ekibi kurar. OpenCode'un yerleşik ana ajan, alt ajan, Task, skill, command ve permission mekanizmalarını kullanır; ikinci bir görev veya kanıt sistemi kurmaz.
 
-Makineye bir kez kurduktan sonra OpenCode içinde `/hhc-install` çalıştırılır. Yeni sihirbazın karar sırası bilinçli olarak kısadır:
+## Hızlı Kurulum
 
-1. **Profil** — Minimal / Standard / Web Development / Desktop Development / High Assurance / Özel
-2. Yalnız **Özel** profilde uzman rolleri
-3. **Tek Ana Ajan / Çoklu Ajan Ekibi**
-4. Çoklu ajanda yönetici tipi
-5. **Scout** kullanımı: Evet / Hayır (varsayılan Hayır)
-6. Mevcut proje için kullanılabilir modeller
-7. Tek Ana Ajanda bir HHC ekip modeli; Çoklu Ajanda doğrudan Türkçe rol → model eşlemesi
-8. Scout açıksa ayrıca **Scout / Dış Araştırma** modeli
-9. Son özet ve **Kur** onayı
+### Önerilen: GitHub üzerinden kurulum
 
-Hazır profil seçildiyse yeniden rol sorulmaz. Çoklu Ajan model adımında kurulu her rolün modeli ayrı ayrı belirlenir; bir rolün seçimi diğer rollere otomatik taşınmaz.
+**Windows**
 
-## Tek Ana Ajan
-
-**Tek Ana Ajan**, sistemde yalnız bir agent dosyası olduğu anlamına gelmez. Kullanıcının tek ana muhatabı **Çalışan Yönetici (`working-manager`)** olur; seçilen profilin uzman rolleri yine kurulur ve gerektiğinde OpenCode'un native Task/subagent mekanizmasıyla çağrılabilir.
-
-Tek Ana Ajanda yönetici tipi sorulmaz. Bir model seçilir ve bütün kurulu HHC rollerine uygulanır.
-
-## Çoklu Ajan Ekibi
-
-Çoklu Ajanda yönetici **Çalışan Yönetici** veya **Orkestratör** olabilir. Kurulu her rol için bağımsız model seçimi zorunludur; tüm rollerin modeli belirlenmeden kurulum özetine geçilmez.
-
-Kullanıcıya görünen adlar Türkçedir: Çalışan Yönetici, Orkestratör, Mimar, Depo Gezgini, Kodlayıcı, Kalite İnceleyici, Görsel QA, Güvenlik İnceleyici. Teknik agent ID'leri backend/config tarafında kalır.
-
-## Özel profil ve capability fallback
-
-Özel profil bir capability hapishanesi değildir. Örneğin yalnız Çalışan Yönetici + Kodlayıcı kurulmuşsa basit dosya sayma/arama işi için Depo Gezgini zorunlu sayılmaz; mevcut agent native `list/glob/grep/read/bash` araçlarıyla güvenilir biçimde yapabiliyorsa görevi tamamlar. Aynı prensip basit görsel doğrulama, test veya küçük mimari/güvenlik kontrolleri için de geçerlidir.
-
-Uzman rol ancak kalite, bağımsızlık veya context izolasyonu gerçek değer katıyorsa çağrılır. Uzman olmadan güvenilir sonuç mümkün değilse `/hhc-reconfigure` ile ilgili rolün eklenmesi önerilebilir.
-
-## Native dış araştırma ve kontrollü paralellik
-
-Yerel repository keşfi HHC `repository-explorer` rolünde kalır. Harici dokümantasyon, dependency kaynağı veya upstream implementasyon doğrulaması gerektiğinde manager, mevcut OpenCode runtime native `scout` subagent'ını sunuyorsa onu on-demand kullanabilir; HHC ayrı researcher/scout rolü veya MCP katmanı kurmaz. Scout görevi güncel ve birincil kaynak odaklı, dar bağlamlı ve kısa sonuçlu verilir.
-
-Scout proje bazında **opt-in**'dir ve varsayılan kapalıdır. Kullanıcı Scout'u açarsa model ayrıca seçilir ve native `scout` agent override'ına açıkça yazılır; böylece pahalı manager modelinin sessizce devralınmasına bırakılmaz. Scout kapalıysa HHC manager Task iznini `deny` üretir ve Scout model/config override'ı oluşturmaz. Ağır `team-review` komutu primary context'i kirletmemek için zaten `subtask: true` kullanır; kısa `team-status` aynı oturum bağlamında kalır. Native Task aracı experimental `background` seçeneğini gerçekten sunuyorsa manager yalnız bağımsız, çakışmayan read-only işleri background çalıştırabilir; seçenek yoksa aynı görevler normal foreground akışında devam eder. HHC experimental flag'i kendiliğinden açmaz.
-
-## Model keşfi
-
-Windows OpenCode Desktop kullanılıyorsa HHC önce `%APPDATA%\ai.opencode.desktop\opencode.global.dat` içindeki `model.user[]` kayıtlarını okur. Yalnız `visibility == "show"` olan kayıtlar `providerID/modelID` biçiminde model seçimine alınır. Bu dosya OpenCode'un public/stable API'si olmadığı için salt-okunur **BEST-EFFORT** kaynaktır.
-
-Desktop state yoksa veya görünür model içermiyorsa **hedef proje dizininde** resmî:
-
-```text
-opencode models
+```powershell
+git clone https://github.com/huseyincig/HHC-AI-Team-Kit.git
+cd HHC-AI-Team-Kit
+HHC-KUR.cmd
 ```
 
-komutuna geçilir. CLI sonucu da alınamazsa yerel OpenCode cache adayları yalnız **UNDOCUMENTED / BEST-EFFORT** fallback olarak kullanılır; cache'deki bütün katalog körlemesine UI'a taşınmaz, yalnız config veya resmî `opencode auth list` görünümüyle etkinliği doğrulanabilen provider'ların modelleri dikkate alınır.
+**macOS / Linux**
 
-`opencode models --refresh` yalnız kullanıcı açıkça isterse bir kez çalıştırılır; otomatik değildir.
+```bash
+git clone https://github.com/huseyincig/HHC-AI-Team-Kit.git
+cd HHC-AI-Team-Kit
+./HHC-KUR.sh
+```
 
-## Sonradan değiştirme
+Makine kurulumu tamamlandıktan sonra hedef projeyi OpenCode'da açın:
+
+```text
+/hhc-install
+```
+
+Kurulum asistanı çalışma profilini, Scout/Playwright tercihlerini ve rol bazlı model atamalarını sorar. Web/Desktop gibi proje özellikleri mümkün olduğunca depodan otomatik çıkarılır.
+
+> Gereksinimler: Git ve Python 3.9+.
+
+### ZIP ile kurulum
+
+1. GitHub Releases bölümünden güncel ZIP paketini indirin.
+2. ZIP'i çıkarın.
+3. Windows'ta `HHC-KUR.cmd`, macOS/Linux'ta `./HHC-KUR.sh` çalıştırın.
+4. Hedef projede `/hhc-install` çalıştırın.
+
+Ayrıntılar: [KURULUM.md](KURULUM.md)
+
+## Öne Çıkan Özellikler
+
+- **SMART görev yönlendirme:** sabit ajan zinciri yerine görev için gereken en küçük ekip seçilir.
+- **3 sade çalışma profili:** Basic, Standard ve Powerful yalnız çalışma politikasını değiştirir; uzmanları profile göre kapatmaz.
+- **Otomatik proje özellikleri:** Web arayüzü, masaüstü arayüzü, backend, CLI, kütüphane, veritabanı, WordPress, container ve mobil sinyalleri çoklu olarak çıkarılır.
+- **Az ajan, az bağlam:** ayrı uzman yalnız gerçek kalite, bağımsızlık veya bağlam yalıtımı değeri sağlıyorsa çağrılır.
+- **Rol bazlı model seçimi:** model yetenekleri, bağlam sınırı ve maliyet bilgisi doğrulanabildiği ölçüde değerlendirilir.
+- **Yerel / harici araştırma ayrımı:** yerel depo keşfi `repository-explorer`, harici/güncel araştırma OpenCode Scout ile yapılır.
+- **İhtiyaç halinde yüklenen skill'ler:** ayrıntılı skill gövdeleri yalnız gerektiğinde devreye girer.
+- **Deterministik doğrulama önceliği:** test, derleme, linter, diff ve benzeri güvenilir kanıt yeterliyse gereksiz ikinci LLM görüşü çağrılmaz.
+- **Kontrollü paralellik:** bağımsız işler arka planda paralel çalıştırılabilir; bağımlı veya aynı dosyayı değiştiren işler sıralı kalır.
+- **İsteğe bağlı Playwright:** yalnız `browser_ui` özelliği doğrulanan projelerde kullanıcı isterse açılır ve `visual-qa` ile sınırlandırılır.
+- **MCP varsayılan kapalı:** güvenilir CLI varsa ayrıca MCP kurulmaz.
+- **Alt ajan derinliği koruması:** `subagent_depth: 1` korunur.
+
+## SMART Çalışma Mantığı
+
+```text
+Kullanıcı
+  ↓
+Working Manager kısa ön değerlendirme
+  ↓
+Çalışma profili politikası + proje özellikleri
+  ↓
+Gerekli en küçük uzman seti
+  ↓
+Role atanmış uygun model
+  ↓
+Gerekirse Scout / QA / Security / Visual QA
+  ↓
+Deterministik ve uzman kanıtı
+  ↓
+Yeterli kanıt → DUR
+```
+
+**SMART, daha fazla ajan demek değildir.** Amaç doğru görevi doğru uzmanla çözmek, gereksiz soru/LLM çağrısı/bağlam tüketimini azaltmak ve yeterli kanıt oluşunca durmaktır.
+
+## Çalışma Profilleri
+
+Profil artık ajan kadrosu değildir. Üç profilde de temel uzmanlar erişilebilir kalır; fark, uzman çağırma, paralellik ve doğrulama yoğunluğudur.
+
+| Profil | Ne zaman? | Davranış |
+|---|---|---|
+| **Basic** | Maliyet ve bağlam ekonomisi öncelikliyse | Uzman çağırma eşiği yüksek, paralellik muhafazakâr, ikinci görüş yalnız kritik durumda. Gerekli uzman yine çağrılabilir. |
+| **Standard** | Çoğu proje için | **Varsayılan ve önerilen.** Minimum gerekli ekip, risk bazlı QA/Security/Visual QA, bağımsız işlerde kontrollü paralellik. |
+| **Powerful** | Kalite/güvence öncelikliyse | Uzman ve bağımsız doğrulama eşiği daha düşük; bağımsız yüksek değerli işler daha istekli paralelleştirilir. Her ajanı çalıştırmaz, aynı rolü varsayılan çoğaltmaz. |
+
+`web-development`, `desktop-development`, `high-assurance`, `minimal` ve `custom` yeni kurulum seçenekleri değildir; yalnız eski kurulumların güvenli migration'ı için tanınır.
+
+## Proje Özellikleri
+
+HHC tek bir “proje türü” seçmek yerine birden fazla özelliği aynı anda algılayabilir:
+
+- `browser_ui`
+- `desktop_ui`
+- `backend`
+- `cli`
+- `library`
+- `database`
+- `wordpress`
+- `containerized`
+- `mobile`
+
+Örneğin React + .NET + Docker projesi aynı anda `browser_ui`, `backend` ve `containerized` olabilir. Algılama birden fazla repo sinyaline dayanır; zayıf tek ipucu kesin sınıflandırma sayılmaz.
+
+## Roller ve Görevleri
+
+| Kullanıcı adı | Teknik ID | Görev |
+|---|---|---|
+| **Çalışan Yönetici** | `working-manager` | Küçük/orta işleri doğrudan uygular; gerektiğinde uzman çağırır. Normal kurulumun ana muhatabıdır. |
+| **Orkestratör** | `manager` | Uygulama yerine yönlendirme ve kalite kapısına odaklanan alternatif primary ajandır; Advanced Configuration içindir. |
+| **Mimar** | `architect` | Gerçek mimari, sözleşme, veri modeli veya büyük sınır değişikliklerini planlar. |
+| **Depo Gezgini** | `repository-explorer` | İlgili dosya, sembol, bağımlılık ve testleri minimum bağlamla çıkarır. |
+| **Kodlayıcı** | `coder` | Değişikliği uygular ve uygun deterministik kontrolleri çalıştırır. |
+| **Kalite İnceleyici** | `qa-reviewer` | Diff, test, kabul ölçütü ve regresyon riskini bağımsız inceler. |
+| **Güvenlik İnceleyici** | `security-reviewer` | Auth, izin, veri mutasyonu, ağ yüzeyi, dependency ve benzeri güvenlik sınırlarında devreye girer. |
+| **Görsel QA** | `visual-qa` | UI/CSS/layout/responsive/etkileşim değişikliklerini görsel ve tarayıcı kanıtıyla doğrular. |
+
+Normal kullanıcı rol kadrosunu seçmek zorunda değildir. Eski Custom profilin karşılığı artık **Advanced Configuration** altında isteğe bağlı specialist daraltmadır.
+
+## Skill Sistemi
+
+HHC 13 skill'i OpenCode'un ihtiyaç halinde yükleme mekanizmasıyla kullanır:
+
+`task-classification`, `repository-analysis`, `implementation-planning`, `safe-refactoring`, `code-review`, `test-strategy`, `regression-review`, `visual-qa`, `accessibility-review`, `browser-testing`, `security-review`, `release-guardrails`, `changelog-and-documentation`.
+
+Skill gövdeleri her çağrıda bağlama taşınmaz; yalnız ilgili olduğunda yüklenir.
+
+## Model Seçimi
+
+Normal kurulumda kurulu her rol için kullanıcı model seçer. HHC profile göre modeli sessizce daha pahalı bir modele değiştirmez: **ROLE → ASSIGNED MODEL** korunur.
+
+`scripts/model_advisor.py`, models.dev üst verisi erişilebildiğinde araç çağırma, görsel girdi, akıl yürütme, bağlam/çıktı sınırı ve maliyet bilgisini değerlendirir:
+
+- zorunlu yetenek açıkça yoksa **INCOMPATIBLE**,
+- bilgi eksik/belirsizse **WARNING**,
+- bilinmeyen fiyat/yetenek tahmin edilmez,
+- runtime model router veya sessiz premium fallback yoktur.
+
+Advanced Configuration'da tek ortak model kullanılabilir; bu çalışma profilini değiştirmez.
+
+## OpenCode Scout
+
+Scout üç profilde de profile bağlı olmadan **isteğe bağlı ve varsayılan kapalıdır**. Harici dokümantasyon, dependency ve upstream/güncel kaynak araştırması içindir. Yerel repo keşfi `repository-explorer` alanında kalır.
+
+Scout açılırsa modeli ayrıca seçilir. Local repo keşfi ile Scout araştırması gerçekten bağımsızsa arka planda paralel yürütülebilir.
+
+## Playwright ile Web Doğrulaması
+
+Playwright artık `web-development` profiline bağlı değildir. `browser_ui` proje özelliği doğrulanmışsa kullanıcıya opt-in olarak sunulur ve varsayılan kapalıdır.
+
+Açıldığında proje düzeyinde MCP yapılandırması üretilir; `playwright_*` araçları genel olarak kapalı, yalnız `visual-qa` rolünde açıktır.
+
+## Paralellik ve Powerful Koruması
+
+Arka planda alt ajan çalıştırma HHC tasarımında kullanılabilir kabul edilir; ancak yalnız:
+
+- parent'ın beklemeden sürdürebileceği,
+- birbirinden bağımsız,
+- dosya/state çakışması üretmeyecek
+
+işlerde kullanılır.
+
+Architecture → implementation → test gibi bağımlı işler ve aynı dosyayı değiştiren ajanlar sıralı kalır. Powerful aynı rolü varsayılan olarak iki kez çağırmaz; ikinci inceleme ancak gerçekten bağımsız yeni kanıt üretecek önemli/kritik durumda kullanılır. Deterministik kanıt ve gerekli kalite kapıları geçtiğinde durulur.
+
+## Yeniden Yapılandırma ve Güncelleme
 
 ```text
 /hhc-reconfigure
 ```
 
-aynı karar ağacını kullanır. Eski rc.16 `single + solo-agent` state'i okunabilir; kullanıcı yeniden yapılandırdığında HHC-owned eski `solo-agent.md` güvenle kaldırılıp yeni `working-manager + profil uzmanları` düzenine geçirilebilir.
+Profil, model atamaları, Scout, Playwright ve Advanced Configuration ayarlarını değiştirir. Eski profil adlarını yeni yapıya güvenli biçimde taşır.
 
-## Güncelleme
+```text
+/hhc-update
+```
 
-Yeni kit sürümü çıkınca:
+Mevcut state'i koruyarak yeni kit sürümüne eşitler.
 
-1. `HHC-KUR`'u yeniden çalıştırın (global kit `current/`'a güncellenir).
-2. Her projede `/hhc-update` çalıştırın (sessiz senkron, mevcut state korunur).
-
-`/hhc-update` ile `/hhc-reconfigure` farkı:
-- **update**: Sessiz, interaktif değil, mevcut state'i aynen korur.
-- **reconfigure**: İnteraktif, profil/rol/model değiştirmeye izin verir, state değişebilir.
-
-## Hedef projeye ne kurulur?
+## Teknik Ayrıntılar
 
 ```text
 .opencode/
@@ -85,50 +192,22 @@ Yeni kit sürümü çıkınca:
   skills/
   commands/
   hhc-team.json
-  opencode.jsonc   # yalnız Scout açıksa HHC-owned minimal Scout model override
+  opencode.jsonc
 opencode.jsonc
 ```
 
-`subagent_depth: 1` korunur: primary uzman subagent çağırabilir; uzmanların kendi alt ekiplerini açması engellenir.
+`hhc-team.json` artık `profile`, küçük `profile_policy` ve çoklu `project_characteristics` bilgisini de tutar. `subagent_depth: 1` korunur. Kullanıcının mevcut `opencode.jsonc` dosyası sessizce ezilmez.
 
-## Adaptif orkestrasyon
+### Legacy migration
 
-Profil sabit pipeline değil kullanılabilir uzman havuzudur. HHC minimum yeterli ekiple başlar, ihtiyaçla genişler ve yeterli kanıt oluşunca durur. Deterministik test/build/lint/LSP ile doğrulanabileni gereksiz ikinci LLM görüşüyle tekrarlamaz; skill gövdeleri native on-demand mekanizmasıyla gerektiğinde yüklenir.
+- `minimal` → `basic`
+- `standard` → `standard`
+- `high-assurance` → `powerful`
+- `web-development` → `standard` + `browser_ui`
+- `desktop-development` → `standard` + `desktop_ui`
+- `custom` → `standard` + eski specialist listesi Advanced Configuration olarak korunur
 
-## İlk makine kurulumu
-
-Windows:
-
-```text
-HHC-KUR.cmd
-```
-
-macOS/Linux:
-
-```text
-./HHC-KUR.sh
-```
-
-Global komutlar:
-
-```text
-/hhc-install
-/hhc-install-remote
-/hhc-reconfigure
-/hhc-update
-```
-
-## Mevcut OpenCode config ve platform notu
-
-Projede kök `opencode.jsonc` zaten varsa HHC onu sessizce ezmez. Scout açıksa HHC yalnız `.opencode/opencode.jsonc` altında minimal `agent.scout.model` override katmanı üretir; mevcut kullanıcı `.opencode/opencode.jsonc` dosyasıyla çakışırsa güvenli olmak için kurulumu durdurur ve dosyayı ezmez. Config kaynaklarının merge edilmesi güncel OpenCode runtime davranışına dayanır. Config yoksa HHC kökte küçük varsayılanı oluşturur; kurulum sonucu config'in korunduğunu açıkça bildirir.
-
-Windows üzerindeki OpenCode Desktop ile WSL içinde `opencode serve` çalıştırılan backend farklı kullanıcı ortamlarıdır. WSL backend kullanılıyorsa HHC global bootstrap'ı WSL içinde de ayrıca kurulmalıdır. Linux/container testleri native Windows Desktop testi sayılmaz.
-
-## MCP
-
-HHC varsayılan olarak MCP sunucusu kurmaz. Yalnız gerçek ihtiyaç varsa OpenCode'un native MCP yapılandırması kullanılmalıdır.
-
-## Geliştirme
+## Test ve Doğrulama
 
 ```bash
 python scripts/validate.py
@@ -136,15 +215,10 @@ python -m pytest -q
 python scripts/release-build.py
 ```
 
+## Katkı, Güvenlik ve Lisans
 
-## SMART model seçimi
-
-Kurulum sihirbazı mevcut OpenCode model keşfini korur; seçim aşamasında `scripts/model_advisor.py` ile models.dev metadata'sı erişilebilirse role göre capability/context/maliyet bilgisi gösterir. Zorunlu capability açıkça yoksa model uyumsuz kabul edilir; metadata eksik veya doğrulanamıyorsa kurulum kırılmaz ve seçim WARNING/UNKNOWN olarak kullanıcı onayına bırakılır. HHC runtime'da modeli otomatik değiştiren premium fallback/router oluşturmaz; seçilen rol önceden atanmış modeli kullanır.
-
-Başlıca zorunlu kontroller: manager/working-manager/repository-explorer/coder için tool calling; visual-qa için tool calling + image input. Metadata provider'a göre değişebildiği için bilinmeyen alanlar tahmin edilmez. Fiyat varsa provider metadata'sından gösterilir, yoksa `bilinmiyor` kabul edilir.
-
-## Web Development ve Playwright MCP
-
-`web-development` profilinde Microsoft Playwright MCP **opt-in** sunulur ve varsayılan kapalıdır. Etkinleştirilirse HHC project-local MCP config üretir, `playwright_*` araçlarını global olarak deny eder ve yalnız `visual-qa` agent'ında allow override kullanır. Paket şu an doğrulanan `@playwright/mcp@0.0.78` sürümünü pinler. Node.js 18+ gerekir.
-
-Chrome DevTools veya ikinci bir browser MCP varsayılan olarak eklenmez. PHP, Composer, WP-CLI, MySQL/MariaDB, Docker, Git, PHPUnit, PHPCS/WPCS, npm ve curl gibi deterministik CLI araçları MCP'ye çevrilmez. İlke: **güvenilir CLI varsa varsayılan MCP ekleme**.
+- [KURULUM.md](KURULUM.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [SECURITY.md](SECURITY.md)
+- [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+- [LICENSE](LICENSE)

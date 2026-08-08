@@ -1,5 +1,5 @@
 {
-  "name": "standard",
+  "name": "powerful",
   "kit_version": "1.2.0",
   "roles": [
     "manager",
@@ -27,9 +27,9 @@
   ],
   "commands": ["team-status", "team-review"],
   "policy": {
-    "specialist_threshold": "normal",
-    "parallelism": "independent_only",
-    "independent_review": "risk_based",
-    "priority": "balanced"
+    "specialist_threshold": "lower",
+    "parallelism": "proactive_independent",
+    "independent_review": "important_or_critical",
+    "priority": "quality"
   }
 }

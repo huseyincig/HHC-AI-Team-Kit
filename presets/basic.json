@@ -1,5 +1,5 @@
 {
-  "name": "standard",
+  "name": "basic",
   "kit_version": "1.2.0",
   "roles": [
     "manager",
@@ -27,9 +27,9 @@
   ],
   "commands": ["team-status", "team-review"],
   "policy": {
-    "specialist_threshold": "normal",
-    "parallelism": "independent_only",
-    "independent_review": "risk_based",
-    "priority": "balanced"
+    "specialist_threshold": "high",
+    "parallelism": "conservative",
+    "independent_review": "critical_only",
+    "priority": "cost"
   }
 }

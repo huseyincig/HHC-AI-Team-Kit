@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.0
+
+- Ana çalışma profilleri `basic`, `standard`, `powerful` olarak sadeleştirildi; Standard varsayılan oldu.
+- Profiller ajan kadrosu olmaktan çıkarılıp küçük SMART çalışma politikalarına dönüştürüldü; üç profilde de temel specialist havuzu erişilebilir.
+- `web-development` / `desktop-development` profil olmaktan çıkarıldı; çoklu `project_characteristics` algılaması eklendi.
+- Playwright, `browser_ui` doğrulaması + kullanıcı opt-in koşuluna bağlandı.
+- Legacy `minimal`, `high-assurance`, Web/Desktop ve `custom` state migration desteği eklendi; Custom davranışı Advanced Configuration olarak korunuyor.
+- Normal kurulum UX'inde Tek Ana Ajan / Çoklu Ajan ana sorusu kaldırıldı; varsayılan `multi + hands_on`, legacy backend yolları korunuyor.
+- Powerful için kontrollü paralellik, bağımsız doğrulama ve aynı-rol çoğaltmama politikası eklendi. Background subagents HHC tasarımında kullanılabilir kabul edildi; dependency/file-state guard'ları korundu.
+- README/KURULUM ve English dokümantasyon yeni profil/proje-özelliği mimarisiyle güncellendi.
+
 ## 1.1.1
 
 - `/hhc-update` komutu ve `install.py --update` sessiz senkron: global kit yeni sürümünde proje dosyalarını interaktif olmadan yeniler; sürüm eşitse kısa-devre.

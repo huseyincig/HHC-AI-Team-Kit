@@ -8,17 +8,83 @@ Bu komut etkileşimli kurulum sihirbazıdır. Kullanıcı açıkça hızlı kuru
 
 Önce proje kökünü salt-okunur incele. `.opencode/hhc-team.json` varsa yeni kurulum yerine `/hhc-reconfigure` öner.
 
-## 1. Profil — her zaman ilk soru
+## 1. Çalışma profili — ilk gerçek kullanıcı kararı
 
-Projeyi salt-okunur inceleyip bir profil öner; ama ilk kullanıcı kararı profil olsun:
-- **Minimal** (`minimal`)
-- **Standard** (`standard`)
-- **Web Development** (`web-development`)
-- **Desktop Development** (`desktop-development`)
-- **High Assurance** (`high-assurance`)
-- **Özel** (`custom`)
+Yalnız üç seçenek sun:
 
-Hazır profil seçildiyse tekrar rol sorma. Yalnız **Özel** profil seçilirse uzman rolleri Türkçe görünen adlarla seçtir:
+- **Basic** (`basic`) — maliyet/bağlam öncelikli; uzman çağırma ve paralellik eşiği daha yüksektir. Gerekli uzman sırf profil nedeniyle kapatılmaz.
+- **Standard** (`standard`) — **varsayılan ve önerilen** dengeli SMART çalışma; minimum gerekli ekip, risk bazlı doğrulama, bağımsız işlerde kontrollü paralellik.
+- **Powerful** (`powerful`) — kalite/güvence öncelikli; bağımsız ve yüksek değerli işler daha istekli paralelleştirilir, önemli/kritik işlerde bağımsız doğrulama eşiği düşer. Her ajanı çalıştırmaz ve aynı rolü varsayılan olarak çoğaltmaz.
+
+Profil **ajan kadrosu değildir**. Üç profilde de temel specialist roller erişilebilir kalır. Kullanıcıya Web/Desktop/High Assurance/Custom seçeneklerini ana profil olarak gösterme.
+
+## 2. Proje özelliklerini otomatik çıkar
+
+Kullanıcıya proje türü sorma. Şunu çalıştır:
+
+`{{PYTHON}} "{{KIT_ROOT}}/scripts/project_characteristics.py" --project-path .`
+
+Sonucu tek enum değil çoklu özellik olarak ele al: `browser_ui`, `desktop_ui`, `backend`, `cli`, `library`, `database`, `wordpress`, `containerized`, `mobile`.
+
+Algılama kanıtı zayıfsa kesin hüküm verme. İleri düzey kullanıcı açıkça düzeltmek isterse backend'e tekrar edilebilir `--project-characteristic <özellik>` geçirilebilir. Bu normal kurulum sorusu değildir.
+
+## 3. Takım biçimi — normal kullanıcıya SORMA
+
+Yeni SMART mimaride **Tek Ana Ajan / Çoklu Ajan** ana kurulum kararı değildir. Normal kurulumda:
+
+- backend `--team-mode multi --manager-mode hands_on` kullanır,
+- primary `working-manager` olur,
+- bütün temel specialist roller erişilebilir kalır,
+- delegation SMART kararına göre yapılır.
+
+Eski `single|multi` backend desteği migration ve Advanced Configuration için korunur. Kullanıcı açıkça tek ortak model veya salt orkestratör primary isterse gelişmiş ayar olarak kullanılabilir; normal kurulum akışına ayrı “team mode” sorusu ekleme.
+
+## 4. Scout — proje bazında opt-in
+
+Kullanıcıya sor:
+
+**Harici dokümantasyon, dependency ve upstream kaynak araştırması için OpenCode Scout kullanmak istiyor musunuz?**
+
+- **Hayır** (varsayılan): Scout HHC tarafından çağrılmaz ve Scout modeli sorulmaz.
+- **Evet**: Scout etkinleştirilir; model adımında Scout / Dış Araştırma için ayrı model seçilir.
+
+Scout profile bağlı değildir. Yerel repository araştırması `repository-explorer` ile kalır.
+
+## 5. Playwright — yalnız browser UI varsa opt-in
+
+`project_characteristics.py` sonucunda `browser_ui.detected == true` ise sor:
+
+**Tarayıcı üzerinden görsel, responsive ve etkileşimli doğrulama için Playwright MCP kullanmak istiyor musunuz?**
+
+- **Hayır** (varsayılan): MCP eklenmez.
+- **Evet**: proje-local Microsoft Playwright MCP eklenir; global `playwright_*` deny, yalnız `visual-qa` override `allow` olur.
+
+`browser_ui` doğrulanmadıysa bu soruyu gösterme. Playwright hiçbir profile tarafından otomatik açılmaz. Chrome DevTools veya ikinci browser MCP ekleme.
+
+## 6. Model keşfi + SMART capability danışmanı
+
+Model keşfi `model_discovery.py` üzerinden yürür. Windows OpenCode Desktop state'i mevcutsa model keşfi önce `%APPDATA%\ai.opencode.desktop\opencode.global.dat` içindeki `model.user[]` kayıtlarından yalnız `visibility == "show"` olan modelleri salt-okunur **BEST-EFFORT** kaynak olarak değerlendirebilir. Bu public/stable OpenCode API değildir. Bu kaynak yoksa resmî `opencode models` CLI kullanılır. CLI da kullanılamıyorsa cache yalnız **UNDOCUMENTED / BEST-EFFORT** fallback'tir ve yalnız yapılandırıldığı/bağlı olduğu doğrulanabilen provider modellerini kullanır. Sonuç boşsa otomatik retry yapma; `--refresh` otomatik çalıştırılmamalı. Kullanıcı isterse bir normal retry veya bir kez `model_discovery.py --project-path . --refresh`, sonra manuel `provider/model` ya da iptal sun.
+
+Kurulu roller kesinleşince bir kez:
+
+`{{PYTHON}} "{{KIT_ROOT}}/scripts/model_advisor.py" --project-path . --role working-manager --role architect --role repository-explorer --role coder --role qa-reviewer --role visual-qa --role security-reviewer [--role scout]`
+
+çalıştır. Scout açıksa `--role scout` ekle.
+
+Advisor çıktısında `RECOMMENDED / COMPATIBLE / WARNING / INCOMPATIBLE`, tool calling, image input, reasoning, context/output limiti ve varsa provider fiyatını kısa göster. Fiyat bilinmiyorsa tahmin etme.
+
+- `INCOMPATIBLE`: zorunlu capability açıkça yok; seçtirme.
+- `WARNING`: metadata eksik/belirsiz; **Yine de kullan / Başka model seç** şeklinde explicit karar al.
+- metadata yoksa kurulumu bozma.
+
+Hardcoded marka/model tavsiyesi yapma. Runtime model router veya sessiz premium fallback oluşturma.
+
+## 7. Model ataması — gerçek kullanıcı kararı
+
+Normal kurulumda her kurulu HHC rolü için ayrı model cevabı topla. Her kurulu HHC rolü için ayrı model seçimi alınır. Bir rolün modelini diğer role sessizce kopyalama. Bütün rollerin modeli belirlenmeden model adımından çıkma ve son onaya geçme.
+
+Roller:
+- Çalışan Yönetici → `working-manager`
 - Mimar → `architect`
 - Depo Gezgini → `repository-explorer`
 - Kodlayıcı → `coder`
@@ -26,133 +92,42 @@ Hazır profil seçildiyse tekrar rol sorma. Yalnız **Özel** profil seçilirse 
 - Görsel QA → `visual-qa`
 - Güvenlik İnceleyici → `security-reviewer`
 
-Teknik agent ID'lerini kullanıcıya gösterme. Primary/yönetici rolü bu ekranda seçilmez; çalışma biçiminden otomatik türetilir.
+Scout açıksa ayrıca Scout modeli seçilir ve başka role otomatik kopyalanmaz.
 
-## 2. Çalışma biçimi
+Advanced Configuration isteyen kullanıcı tek ortak model seçebilir; backend `--shared-model provider/model` bunu destekler. Bu seçenek profili değiştirmez.
 
-Yalnız iki seçenek sun:
-- **Tek Ana Ajan** — kullanıcı tek ana muhatap olarak Çalışan Yönetici ile çalışır; profil uzmanları yine kurulur ve gerektiğinde alt ajan olarak kullanılabilir.
-- **Çoklu Ajan Ekibi** — yönetici + uzman ekip; roller için ayrı model atanabilir.
+## 8. Advanced Configuration
 
-`Tam bağımsız tek ajan`, `Gerçek solo ajan` veya alt ajanları tamamen kapatan üçüncü seçenek gösterme.
+Normal kullanıcıya rol seçimi sorma. Eski `custom` profilin görevi artık buradadır.
 
-### Tek Ana Ajan
-Primary otomatik **Çalışan Yönetici** (`working-manager`) olur. Yönetici tipi SORMA. Profil uzmanlarını kaldırma ve Task/delegation kapısını kapatma.
+Kullanıcı özellikle isterse:
+- specialist rol havuzunu `--roles coder,qa-reviewer,...` ile daraltabilir,
+- **Orkestratör** (`manager`) primary için `--manager-mode orchestrator` seçebilir,
+- legacy `--team-mode single` veya shared model akışını kullanabilir,
+- project characteristic override verebilir.
 
-### Çoklu Ajan Ekibi
-Yönetici tipini sor:
-- **Çalışan Yönetici** (`hands_on` → `working-manager`)
-- **Orkestratör** (`orchestrator` → `manager`)
+Bu ayarlar ana profile listesine `Custom` eklemez.
 
-Özel profilde en az bir uzman rol olmalıdır. Hazır profilde rol kadrosu profilden gelir.
-
-## 3. Scout — proje bazında opt-in
-
-Çalışma biçiminden sonra kullanıcıya şu soruyu sor:
-
-**Bu projede harici dokümantasyon, dependency ve upstream kaynak araştırması için OpenCode Scout kullanmak istiyor musunuz?**
-
-Kısa açıklama: Scout yalnız harici araştırma içindir; yerel repository araştırmaları `repository-explorer` ile devam eder.
-
-- **Hayır** (varsayılan): Scout HHC tarafından çağrılmaz ve Scout modeli sorulmaz.
-- **Evet**: Scout etkinleştirilir ve model keşfinden sonra Scout / Dış Araştırma için ayrıca model seçilir.
-
-Preset Scout'u otomatik açmaz. Kullanıcı açıkça Evet demeden enable etme.
-
-## 4. Web Development ise Playwright MCP — opt-in
-
-Profil `web-development` ise Scout kararından sonra şunu sor:
-
-**Web projelerinde tarayıcı üzerinden görsel, responsive ve etkileşimli doğrulama için Playwright MCP kullanmak istiyor musunuz?**
-
-- **Hayır** (varsayılan): MCP eklenmez.
-- **Evet**: Microsoft Playwright MCP proje-local olarak eklenir; global `playwright_*` deny ve yalnız Görsel QA agent override `allow` kullanılır. PHP, SQL, Docker, Composer veya WP-CLI MCP yapılmaz.
-
-Web dışı profillerde bu soruyu gösterme. Chrome DevTools veya ikinci browser MCP ekleme.
-
-## 5. Model keşfi + SMART capability danışmanı
-
-Model adımından hemen önce, kurulu roller kesinleştikten sonra bir kez:
-
-`{{PYTHON}} "{{KIT_ROOT}}/scripts/model_advisor.py" --project-path . --role <kurulu-role> ... [--role scout]`
-
-çalıştır. Scout açıksa `--role scout` ekle. `model_advisor.py`, mevcut `model_discovery.py` keşfini kullanır ve erişilebilirse models.dev metadata ile capability/context/maliyet bilgisi ekler.
-
-
-OpenCode Desktop state'i mevcutsa `model_discovery.py` önce `%APPDATA%\ai.opencode.desktop\opencode.global.dat` içindeki `model.user[]` kayıtlarından yalnız `visibility == "show"` olan modelleri kullanır. Bu, Windows Desktop `/models` görünürlüğü için doğrulanmış yerel kullanıcı state'idir; dosya biçimi public/stable OpenCode API olmadığı için **BEST-EFFORT** kabul edilir. Sonuç `providerID/modelID` biçimindedir.
-
-Desktop state yoksa veya görünür model döndürmüyorsa resmî `opencode models` CLI çıktısına geçilir. CLI da kullanılamıyorsa cache yalnız **UNDOCUMENTED / BEST-EFFORT** fallback olabilir; fallback hiçbir zaman cache'deki bütün katalogu körlemesine kullanıcıya taşımaz, yalnız yapılandırıldığı/bağlı olduğu doğrulanabilen provider modellerini kullanır.
-
-Model listesi boşsa kendi kendine tekrar etme. Kullanıcı açıkça isterse bir normal yeniden deneme veya bir kez:
-
-`{{PYTHON}} "{{KIT_ROOT}}/scripts/model_advisor.py" --project-path . --refresh`
-
-çalıştır. Refresh otomatik çalıştırılmamalı; yalnız kullanıcı açıkça seçerse çalıştırılmalıdır. Sonuç yine boşsa tam `provider/model` kimliğini elle girme veya kurulumu iptal etme seçenekleri sun. Normal kurulumda **OpenCode'u devral** seçeneği gösterme.
-
-Liste uzunsa önce sağlayıcıyı, sonra modeli seçtir. Model kimliği uydurma.
-
-Advisor çıktısında model başına `RECOMMENDED / COMPATIBLE / WARNING / INCOMPATIBLE` sınıfını, tool calling, image input, reasoning, context/output limiti ve varsa provider fiyatını kısa göster. Fiyat bilinmiyorsa tahmin etme.
-
-- `INCOMPATIBLE`: zorunlu capability açıkça yok; seçtirme.
-- `WARNING`: metadata eksik/belirsiz; kullanıcıya bunu açıkla ve **Yine de kullan / Başka model seç** şeklinde explicit karar al.
-- metadata servisi yoksa kurulumu bozma; capability UNKNOWN/WARNING kabul et.
-
-Hardcoded marka/model tavsiyesi yapma. Runtime model router/fallback oluşturma; bu danışman yalnız kurulum/reconfigure seçim aşamasındadır.
-
-## 6. Model ataması
-
-### Tek Ana Ajan
-Yalnız **bir model** seçtir. Seçilen modeli Çalışan Yönetici ve profildeki bütün kurulu uzmanlara uygula. Backend'de `--shared-model provider/model` kullan. Bu model yalnız kurulu HHC rollerine uygulanır. Scout = Evet ise ayrıca **Scout / Dış Araştırma** modeli seçtir; Scout manager/shared modeli sessizce devralmasın.
-
-### Çoklu Ajan Ekibi — zorunlu rol bazlı akış
-Kurulu ekip listesini kesinleştir ve **her rol için ayrı model cevabı topla**. Model adımının tamamlanma koşulu, kurulu rollerin tamamının bir `provider/model` değerine sahip olmasıdır.
-
-Uygulanacak algoritma:
-1. Kurulu rolleri sırayla Türkçe görünen adlarıyla ele al.
-2. Her rol için `Bu rol hangi modeli kullansın?` sorusunu sor ve yalnız o role ait cevabı kaydet.
-3. Bir rol için verilen cevabı başka role otomatik kopyalama.
-4. Kullanıcı manuel giriş seçerse manuel `provider/model` değerini yine yalnız o rol için iste.
-5. Bütün rollerin modeli belirlenmeden model adımından çıkma ve son onaya geçme.
-6. Backend'e kurulu **her rol için** bir `--model role=provider/model` argümanı geçir.
-
-OpenCode `question` aracı tek çağrıda birden çok ayrı soru destekliyorsa rol başına ayrı soru alanı kullan; desteklemiyorsa rolleri sırayla sor. Her iki durumda da kullanıcıdan kurulu rol sayısı kadar bağımsız model kararı alınmalıdır.
-
-Örnek sonuç:
-- Çalışan Yönetici → `provider/model-a`
-- Mimar → `provider/model-b`
-- Depo Gezgini → `provider/model-c`
-- Kodlayıcı → `provider/model-d`
-- Kalite İnceleyici → `provider/model-e`
-- Görsel QA → `provider/model-f`
-
-Bu örnek yalnız sonuç biçimini gösterir; model kimliği uydurma.
-
-Scout = Evet ise kurulu rollerden bağımsız olarak ayrıca **Scout / Dış Araştırma** için bir `provider/model` seçimi al. Bu seçim başka role otomatik kopyalanmaz ve pahalı manager modeline sessiz fallback yapılmaz.
-
-## 7. Son onay
+## 9. Son onay
 
 Dosya yazmadan önce tek özet göster:
-- profil
-- Özel profilde seçilen uzmanlar / hazır profilde profil kadrosu
-- çalışma biçimi
-- Tek Ana Ajan ise Ana Ajan: Çalışan Yönetici + seçilen tek model
-- Çoklu Ajan ise yönetici tipi + Türkçe rol → model dağılımı
-- Scout: Kapalı veya Açık + seçilen Scout modeli
-- Playwright MCP: Web profilinde Kapalı/Açık
-- role/model capability uyarıları ve explicit override varsa özeti
-- hedef proje
+- profil: Basic / Standard / Powerful
+- algılanan proje özellikleri + kısa kanıt
+- primary: normal akışta Çalışan Yönetici
+- rol → model dağılımı
+- Scout: Kapalı/Açık + modeli
+- Playwright: uygun projede Kapalı/Açık
+- varsa Advanced Configuration override'ları
+- model capability uyarıları
 
-`question` ile **Kur / Ayarları değiştir / İptal** seçeneklerini sun. Kur onayı olmadan backend'i çağırma.
+Onaydan sonra normal backend örneği:
 
-## Backend
+`{{PYTHON}} "{{KIT_ROOT}}/scripts/install.py" --project-path . --team-mode multi --manager-mode hands_on --preset <basic|standard|powerful> --model working-manager=provider/model ... --scout <enabled|disabled> [--scout-model provider/model] --playwright <enabled|disabled> --validate-model-capabilities`
 
-Tek Ana Ajan:
-`{{PYTHON}} "{{KIT_ROOT}}/scripts/install.py" --project-path . --team-mode single --preset <profil> [--roles <yalnız-custom-uzmanlar>] --shared-model provider/model --scout <enabled|disabled> [--scout-model provider/model] --playwright <enabled|disabled> --validate-model-capabilities`
+Browser UI otomatik algılanamadı ama kullanıcı Advanced Configuration'da açıkça doğruladıysa ayrıca:
 
-Hazır Çoklu Ajan profili:
-`{{PYTHON}} "{{KIT_ROOT}}/scripts/install.py" --project-path . --team-mode multi --preset <profil> --manager-mode <mod> --model role=provider/model ... --scout <enabled|disabled> [--scout-model provider/model] --playwright <enabled|disabled> --validate-model-capabilities`
+`--project-characteristic browser_ui`
 
-Özel Çoklu Ajan profili:
-`{{PYTHON}} "{{KIT_ROOT}}/scripts/install.py" --project-path . --team-mode multi --preset custom --manager-mode <mod> --roles coder,qa-reviewer,... --model role=provider/model ... --scout <enabled|disabled> [--scout-model provider/model] --playwright <enabled|disabled> --validate-model-capabilities`
+geçilebilir.
 
-Kurulum sonunda JSON çıktısından profil, çalışma biçimi, primary ajan, roller, model dağılımı, Scout açık/kapalı + Scout modeli, yazılan/korunan dosyalar ve `config` sonucunu kısa raporla. `config.action` `preserved-existing-config` ise mevcut `opencode.jsonc` dosyasının korunduğunu ve HHC'nin bu dosyadaki `default_agent`, `subagent_depth` veya `compaction` değerlerini değiştirmediğini açıkça belirt.
+Kurulum sonunda JSON çıktısından profil, proje özellikleri, primary, roller, model dağılımı, Scout/Playwright durumu, yazılan/korunan dosyalar ve config sonucunu kısa raporla.

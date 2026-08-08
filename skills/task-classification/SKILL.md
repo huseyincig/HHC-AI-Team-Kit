@@ -19,7 +19,7 @@ Amaç en fazla kontrolü değil, **yeterli güveni sağlayan en küçük çalı�
 
 ## Minimum routing
 
-Preset'teki roller bir **uzman havuzudur**, sabit pipeline değildir. En küçük yeterli setle başla; yeni bulgu ortaya çıkarsa ekibi genişlet.
+Çalışma profili bir **ajan kadrosu değildir**; maliyet, paralellik ve doğrulama yoğunluğu politikasıdır. Erişilebilir uzmanlar arasından en küçük yeterli setle başla; yeni bulgu ortaya çıkarsa ekibi genişlet.
 
 - `repository-explorer`: görev alanını bulmak ana context'i ciddi büyütecekse.
 - `architect`: yeni subsystem, cross-module sözleşme, public API, veri modeli/schema, migration, büyük bağımlılık veya mimari sınır değişiyorsa.

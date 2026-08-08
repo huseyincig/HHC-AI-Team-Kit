@@ -10,7 +10,7 @@ def main()->int:
     ap.add_argument('--manager-mode',choices=['orchestrator','hands_on'],default='hands_on'); ap.add_argument('--roles')
     ap.add_argument('--shared-model'); ap.add_argument('--model',action='append',default=[])
     ap.add_argument('--scout',choices=['enabled','disabled']); ap.add_argument('--scout-model')
-    ap.add_argument('--playwright',choices=['enabled','disabled']); ap.add_argument('--validate-model-capabilities',action='store_true')
+    ap.add_argument('--playwright',choices=['enabled','disabled']); ap.add_argument('--project-characteristic',action='append',default=[],choices=['browser_ui','desktop_ui','backend','cli','library','database','wordpress','containerized','mobile']); ap.add_argument('--validate-model-capabilities',action='store_true')
     ap.add_argument('--model-metadata-file',type=Path,help='Test/offline doğrulama için models.dev api.json uyumlu metadata dosyası')
     args=ap.parse_args()
     repo=args.repo.strip()
@@ -33,6 +33,7 @@ def main()->int:
     if args.scout:cmd += ['--scout',args.scout]
     if args.scout_model:cmd += ['--scout-model',args.scout_model]
     if args.playwright:cmd += ['--playwright',args.playwright]
+    for c in args.project_characteristic:cmd += ['--project-characteristic',c]
     if args.validate_model_capabilities:cmd += ['--validate-model-capabilities']
     if args.model_metadata_file:cmd.extend(['--model-metadata-file',str(args.model_metadata_file)])
     return subprocess.call(cmd)

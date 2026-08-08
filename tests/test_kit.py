@@ -33,11 +33,14 @@ def test_custom_roles(tmp_path):
     assert not (p/'.opencode/agents/architect.md').exists()
 
 
-def test_roles_only_allowed_for_custom_profile(tmp_path):
+def test_roles_are_advanced_override_not_profile_only(tmp_path):
     p=tmp_path/'app'
     r=run(KIT/'scripts/install.py','--project-path',p,'--preset','standard','--roles','coder,qa-reviewer')
-    assert r.returncode!=0
-
+    assert r.returncode==0, r.stderr
+    state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
+    assert state['profile']=='standard'
+    assert state['advanced_roles']==['coder','qa-reviewer']
+    assert state['roles']==['working-manager','coder','qa-reviewer']
 
 def test_single_main_agent_keeps_profile_specialists_and_shared_model(tmp_path):
     p=tmp_path/'app'
@@ -81,20 +84,20 @@ def test_shared_and_per_role_models_are_mutually_exclusive(tmp_path):
     assert r.returncode!=0
 
 
-def test_reconfigure_removes_old_hhc_roles_but_keeps_user_files(tmp_path):
+def test_reconfigure_profile_changes_policy_not_roster_and_keeps_user_files(tmp_path):
     p=tmp_path/'app'
     assert run(KIT/'scripts/install.py','--project-path',p,'--preset','standard').returncode==0
     user=p/'.opencode/agents/my-private-agent.md'; user.write_text('kullanıcı dosyası',encoding='utf-8')
-    assert (p/'.opencode/agents/architect.md').exists()
-    r=run(KIT/'scripts/install.py','--project-path',p,'--reconfigure','--team-mode','multi','--preset','minimal','--manager-mode','orchestrator','--shared-model','provider/team')
+    r=run(KIT/'scripts/install.py','--project-path',p,'--reconfigure','--preset','basic','--manager-mode','orchestrator','--shared-model','provider/team')
     assert r.returncode==0, r.stderr
-    assert not (p/'.opencode/agents/architect.md').exists()
     assert user.read_text(encoding='utf-8')=='kullanıcı dosyası'
+    assert (p/'.opencode/agents/architect.md').exists()
+    assert (p/'.opencode/agents/security-reviewer.md').exists()
     assert (p/'.opencode/agents/manager.md').exists()
     assert not (p/'.opencode/agents/working-manager.md').exists()
     state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
-    assert state['preset']=='minimal' and state['manager_mode']=='orchestrator'
-
+    assert state['profile']=='basic' and state['preset']=='basic'
+    assert state['manager_mode']=='orchestrator'
 
 def test_reconfigure_requires_state(tmp_path):
     p=tmp_path/'app'
@@ -121,38 +124,36 @@ def test_global_bootstrap_contains_reconfigure(tmp_path, monkeypatch):
     assert (root/'hhc-install-remote.md').is_file()
     assert (root/'hhc-reconfigure.md').is_file()
     text=(root/'hhc-install.md').read_text(encoding='utf-8')
-    assert 'Profil — her zaman ilk soru' in text and 'Tek Ana Ajan' in text and 'Çoklu Ajan Ekibi' in text and 'model_discovery.py' in text
-    assert 'kurulu **her rol için** bir `--model role=provider/model`' in text
-    assert 'Bütün rollerin modeli belirlenmeden model adımından çıkma' in text
-
+    assert 'Çalışma profili — ilk gerçek kullanıcı kararı' in text
+    assert 'Basic' in text and 'Standard' in text and 'Powerful' in text
+    assert 'normal kullanıcıya SORMA' in text and '--team-mode multi --manager-mode hands_on' in text
+    assert 'model_advisor.py' in text and 'Bütün rollerin modeli belirlenmeden model adımından çıkma' in text
 
 def test_adopts_identical_pre_state_install_for_future_reconfigure(tmp_path):
     p=tmp_path/'app'
-    # rc.12 benzeri: dosyalar var fakat hhc-team.json yok.
     assert run(KIT/'scripts/install.py','--project-path',p,'--preset','standard').returncode==0
     state=p/'.opencode/hhc-team.json'; state.unlink()
-    # Aynı kurulum yeniden çalışınca mevcut birebir HHC dosyaları güvenle sahiplenilir.
     r=run(KIT/'scripts/install.py','--project-path',p,'--preset','standard')
     assert r.returncode==0, r.stderr
     data=json.loads(state.read_text(encoding='utf-8'))
     assert '.opencode/agents/architect.md' in data['managed_files']
     assert data['config_created_by_hhc'] is True
-    # Artık profil değişikliği eski HHC rolünü temizleyebilir.
-    r=run(KIT/'scripts/install.py','--project-path',p,'--reconfigure','--preset','minimal')
+    r=run(KIT/'scripts/install.py','--project-path',p,'--reconfigure','--preset','basic')
     assert r.returncode==0, r.stderr
-    assert not (p/'.opencode/agents/architect.md').exists()
+    # Profile is policy-only: specialist availability remains intact.
+    assert (p/'.opencode/agents/architect.md').exists()
+    assert (p/'.opencode/agents/security-reviewer.md').exists()
 
-
-def test_custom_profile_multi_requires_specialists_but_single_may_be_manager_only(tmp_path):
+def test_legacy_custom_requires_explicit_advanced_roles_on_new_install(tmp_path):
     p=tmp_path/'multi'
-    r=run(KIT/'scripts/install.py','--project-path',p,'--team-mode','multi','--preset','custom')
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','custom')
     assert r.returncode!=0
-    p2=tmp_path/'single'
-    r=run(KIT/'scripts/install.py','--project-path',p2,'--team-mode','single','--preset','custom','--shared-model','provider/shared')
+    p2=tmp_path/'with-roles'
+    r=run(KIT/'scripts/install.py','--project-path',p2,'--preset','custom','--roles','coder','--shared-model','provider/shared')
     assert r.returncode==0, r.stderr
     state=json.loads((p2/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
-    assert state['roles']==['working-manager']
-
+    assert state['profile']=='standard'
+    assert state['advanced_roles']==['coder']
 
 def test_model_discovery_cache_only_exposes_configured_provider(tmp_path, monkeypatch):
     home=tmp_path/'home'; cache=home/'.cache'; cache.mkdir(parents=True)
@@ -193,24 +194,24 @@ def test_model_discovery_empty_does_not_fail_or_loop(tmp_path, monkeypatch):
 def test_adaptive_routing_skill_is_installed_and_lightweight(tmp_path):
     skill=(KIT/'skills/task-classification/SKILL.md').read_text(encoding='utf-8')
     assert 'Minimum routing' in skill
-    assert 'Preset' in skill and 'sabit pipeline değildir' in skill
+    assert 'Çalışma profili' in skill and 'ajan kadrosu değildir' in skill
     assert 'Kararı değiştirmeyecek bilinmeyeni araştırma' in skill
     assert 'Context taşıma; referans taşı' in skill
     assert len(skill.encode('utf-8')) < 7000
     p=tmp_path/'app'
-    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal')
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','basic')
     assert r.returncode==0, r.stderr
     assert (p/'.opencode/skills/task-classification/SKILL.md').is_file()
-
 
 def test_manager_uses_minimum_team_not_fixed_pipeline():
     for name in ('manager','working-manager'):
         text=(KIT/f'roles/{name}.md').read_text(encoding='utf-8')
-        assert 'minimum' in text.lower()
-        assert 'ihtiyaç' in text.lower() and 'genişlet' in text.lower()
+        low=text.lower()
+        assert 'minimum' in low
+        assert 'ihtiyaç' in low and 'genişlet' in low
         assert 'task-classification' in text
-        assert 'her rol' in text.lower() or 'sabit pipeline' in text.lower()
-
+        assert 'profil' in low
+        assert ('kadro' in low or 'bütün uzmanları' in low or 'sabit pipeline' in low)
 
 def test_small_tasks_do_not_force_specialists():
     text=(KIT/'skills/task-classification/SKILL.md').read_text(encoding='utf-8')
@@ -262,22 +263,24 @@ def test_role_prompts_remain_model_independent_and_no_dynamic_task_metadata():
         assert 'bugünün tarihi' not in low
 
 
-def test_presets_are_capability_pools_and_include_classification():
-    for name in ('minimal','standard','custom'):
-        data=json.loads((KIT/f'presets/{name}.json').read_text(encoding='utf-8'))
-        assert 'task-classification' in data['skills']
-    # Standard kadro korunur; optimizasyon kurulumda rol silerek yapılmaz.
-    standard=json.loads((KIT/'presets/standard.json').read_text(encoding='utf-8'))
-    assert {'manager','architect','repository-explorer','coder','qa-reviewer','visual-qa'} <= set(standard['roles'])
+def test_profiles_are_policy_only_and_share_capability_pool():
+    names=('basic','standard','powerful')
+    data=[json.loads((KIT/f'presets/{name}.json').read_text(encoding='utf-8')) for name in names]
+    assert {p.stem for p in (KIT/'presets').glob('*.json')}==set(names)
+    for d in data:
+        assert 'task-classification' in d['skills']
+        assert {'manager','architect','repository-explorer','coder','qa-reviewer','visual-qa','security-reviewer'} <= set(d['roles'])
+        assert len(d['skills'])==13
+        assert set(d['policy'])=={'specialist_threshold','parallelism','independent_review','priority'}
+    assert data[0]['roles']==data[1]['roles']==data[2]['roles']
+    assert data[0]['skills']==data[1]['skills']==data[2]['skills']
 
-
-def test_legacy_solo_agent_is_not_shipped_and_wizard_does_not_offer_solo_mode():
+def test_legacy_solo_agent_is_not_shipped_and_team_mode_is_not_main_ux():
     assert not (KIT/'roles/solo-agent.md').exists()
     wizard=(KIT/'bootstrap/commands/hhc-install.md').read_text(encoding='utf-8')
-    assert 'Tam bağımsız tek ajan' in wizard  # yasaklanan seçenek olarak anılır
-    assert 'Yalnız iki seçenek sun' in wizard
-    assert 'Tek Ana Ajan' in wizard and 'Çoklu Ajan Ekibi' in wizard
-
+    assert 'Tek Ana Ajan / Çoklu Ajan' in wizard
+    assert 'normal kullanıcıya SORMA' in wizard
+    assert 'legacy `--team-mode single`' in wizard or 'legacy `single|multi`' in wizard
 
 def test_prompt_budget_does_not_explode():
     role_bytes=sum(f.stat().st_size for f in (KIT/'roles').glob('*.md'))
@@ -369,11 +372,12 @@ def test_new_config_uses_native_minimum_without_reserved(tmp_path):
     assert data['config']['action']=='created-hhc-config'
 
 
-def test_manager_only_delegates_to_available_agents():
-    for name in ('manager','working-manager'):
-        text=(KIT/f'roles/{name}.md').read_text(encoding='utf-8').lower()
-        assert 'gerçekten mevcut' in text and 'çağrılabilir' in text
-
+def test_manager_keeps_specialists_available_but_routes_conditionally():
+    text=(KIT/'roles/manager.md').read_text(encoding='utf-8')
+    assert 'çağrılabilir' in text
+    assert 'Çalışma profilini sabit pipeline veya rol kadrosu olarak yorumlama' in text
+    for role in ('architect','repository-explorer','coder','qa-reviewer','visual-qa','security-reviewer'):
+        assert f'{role}: allow' in text
 
 def test_lsp_is_native_deterministic_validation_not_new_framework():
     coder=(KIT/'roles/coder.md').read_text(encoding='utf-8')
@@ -405,22 +409,18 @@ def test_rc16_does_not_add_rejected_native_complexity(tmp_path):
     assert not (KIT/'tools').exists()
 
 
-def test_rc18_wizard_profile_is_first_and_multi_model_flow_is_deterministic():
+def test_profile_is_first_and_team_mode_is_smart_default():
     text=(KIT/'bootstrap/commands/hhc-install.md').read_text(encoding='utf-8')
-    assert text.index('## 1. Profil') < text.index('## 2. Çalışma biçimi')
-    assert '### Çoklu Ajan Ekibi — zorunlu rol bazlı akış' in text
-    assert 'her rol için ayrı model cevabı topla' in text
-    assert 'Bir rol için verilen cevabı başka role otomatik kopyalama' in text
+    assert text.index('## 1. Çalışma profili') < text.index('## 2. Proje özelliklerini otomatik çıkar')
+    assert 'Basic' in text and 'Standard' in text and 'Powerful' in text
+    assert 'normal kullanıcıya SORMA' in text
+    assert '--team-mode multi --manager-mode hands_on' in text
     assert 'Bütün rollerin modeli belirlenmeden model adımından çıkma' in text
-    assert 'kurulu **her rol için** bir `--model role=provider/model`' in text
 
-
-def test_rc17_user_visible_role_labels_are_turkish():
+def test_user_visible_role_labels_are_turkish():
     text=(KIT/'bootstrap/commands/hhc-install.md').read_text(encoding='utf-8')
     for label in ('Çalışan Yönetici','Orkestratör','Mimar','Depo Gezgini','Kodlayıcı','Kalite İnceleyici','Görsel QA','Güvenlik İnceleyici'):
         assert label in text
-    assert "Teknik agent ID'lerini kullanıcıya gösterme" in text
-
 
 def test_rc17_single_mode_keeps_task_capability():
     p=(KIT/'roles/working-manager.md').read_text(encoding='utf-8')
@@ -436,13 +436,11 @@ def test_rc17_manager_capability_fallback_rule():
         assert '/hhc-reconfigure' in text
 
 
-def test_rc17_reconfigure_uses_same_new_decision_tree():
+def test_reconfigure_uses_same_new_decision_tree():
     text=(KIT/'bootstrap/commands/hhc-reconfigure.md').read_text(encoding='utf-8')
     assert 'aynı karar ağacını' in text
-    assert 'Önce profil' in text
-    assert 'Tek Ana Ajan' in text and 'Çoklu Ajan Ekibi' in text
-    assert 'solo-agent' in text and 'Eski rc.16 state' in text
-
+    assert 'Basic / Standard / Powerful' in text
+    assert 'Legacy profile' in text or 'Legacy' in text
 
 def test_rc17_single_reconfigure_migrates_legacy_solo_owned_file(tmp_path):
     p=tmp_path/'app'
@@ -484,12 +482,10 @@ def test_model_discovery_cache_can_use_authenticated_provider_without_reading_cr
     assert data['active_providers']==['provider-auth']
 
 
-def test_rc18_reconfigure_multi_model_flow_is_role_complete():
+def test_reconfigure_multi_model_flow_is_role_complete():
     text=(KIT/'bootstrap/commands/hhc-reconfigure.md').read_text(encoding='utf-8')
     assert 'Kurulu ekipte N rol varsa N ayrı model kararı alınmalıdır.' in text
-    assert 'Bir rolün cevabını başka role otomatik uygulama.' in text
-    assert 'kurulu her rol için açık `--model role=provider/model`' in text
-
+    assert 'bir rolün modelini diğerine sessizce kopyalama' in text
 
 def test_rc18_source_and_dist_exclude_personal_opencode_files(tmp_path):
     out=tmp_path/'dist'; source=tmp_path/'source'
@@ -560,7 +556,7 @@ def test_rc19_bootstrap_documents_desktop_show_source_and_keeps_role_complete_fl
         assert 'opencode.global.dat' in text
         assert 'visibility' in text and 'show' in text
     install=(KIT/'bootstrap/commands/hhc-install.md').read_text(encoding='utf-8')
-    assert 'her rol için ayrı model cevabı topla' in install
+    assert 'her kurulu HHC rolü için ayrı model cevabı topla' in install
     assert 'Bütün rollerin modeli belirlenmeden model adımından çıkma' in install
 
 
@@ -630,15 +626,13 @@ def test_native_scout_routing_is_explicit_and_readonly_external_only(tmp_path):
     assert 'scout: deny' in installed  # opt-in: varsayılan kapalı
 
 
-def test_background_parallelism_is_capability_based_and_non_polling():
+def test_background_parallelism_is_stable_but_dependency_guarded():
     for role in ('manager','working-manager'):
         text=(KIT/f'roles/{role}.md').read_text(encoding='utf-8')
-        assert 'Task aracı `background` seçeneğini gerçekten sunuyorsa' in text
-        assert 'seçenek yoksa normal foreground akışını kullan' in text
+        assert 'Task `background` akışıyla' in text
         assert 'Background işi poll etme' in text
-        assert 'aynı dosya/konuda çakışan iş başlatma' in text
-        assert 'Bağımlı işler ve aynı dosyayı değiştiren işler sıralı kalır' in text
-
+        assert 'Bağımlı işler' in text and 'sıralı kalır' in text
+        assert 'seçeneğini gerçekten sunuyorsa' not in text
 
 def test_command_context_isolation_is_only_on_heavy_review():
     review=(KIT/'commands/team-review.md').read_text(encoding='utf-8')
@@ -740,8 +734,8 @@ def test_bootstrap_scout_opt_in_and_separate_model_documented():
     install=(KIT/'bootstrap/commands/hhc-install.md').read_text(encoding='utf-8')
     reconf=(KIT/'bootstrap/commands/hhc-reconfigure.md').read_text(encoding='utf-8')
     assert 'Scout — proje bazında opt-in' in install
-    assert 'varsayılan' in install and 'Scout / Dış Araştırma' in install
-    assert '--scout <enabled|disabled>' in install and '--scout-model provider/model' in install
+    assert 'profile bağlı değildir' in install
+    assert 'Scout modeli' in install and 'ayrıca' in install
     assert 'scout_enabled' in reconf and 'Scout / Dış Araştırma' in reconf
 
 # rc.19 SMART model selection + opt-in Playwright MCP
@@ -921,40 +915,35 @@ def test_update_rejects_with_reconfigure(tmp_path):
     assert r.returncode!=0
 
 
-def test_update_custom_preset_preserves_specialists(tmp_path):
+def test_update_legacy_custom_migrates_to_advanced_and_preserves_specialists(tmp_path):
     p=tmp_path/'app'
     r=run(KIT/'scripts/install.py','--project-path',p,'--preset','custom','--roles','coder,qa-reviewer')
     assert r.returncode==0, r.stderr
-    state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
-    state['kit_version']='1.0.0'
-    (p/'.opencode/hhc-team.json').write_text(json.dumps(state,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    state_path=p/'.opencode/hhc-team.json'; state=json.loads(state_path.read_text(encoding='utf-8'))
+    # Simulate a legacy custom state from the previous kit.
+    state['kit_version']='1.1.1'; state['preset']='custom'; state.pop('profile',None); state.pop('advanced_roles',None)
+    state_path.write_text(json.dumps(state),encoding='utf-8')
     r=run(KIT/'scripts/install.py','--project-path',p,'--update')
     assert r.returncode==0, r.stderr
-    new_state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
+    new_state=json.loads(state_path.read_text(encoding='utf-8'))
+    assert new_state['profile']=='standard' and new_state['preset']=='standard'
+    assert new_state['advanced_roles']==['coder','qa-reviewer']
     assert set(new_state['roles'])=={'working-manager','coder','qa-reviewer'}
-    assert new_state['preset']=='custom'
 
-
-def test_update_removes_obsolete_hhc_files_keeps_user_files(tmp_path):
+def test_update_legacy_minimal_migrates_to_basic_and_expands_capability_pool(tmp_path):
     p=tmp_path/'app'
     assert run(KIT/'scripts/install.py','--project-path',p,'--preset','standard').returncode==0
-    user=p/'.opencode/agents/my-private-agent.md'; user.write_text('kullanıcı dosyası',encoding='utf-8')
-    assert (p/'.opencode/agents/architect.md').exists()
-    # State'i minimal'e çevirip kit_version'ı eski yap; managed_files'i koru ki --update temizlesin
-    state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
-    state['kit_version']='1.0.0'; state['preset']='minimal'; state['roles']=['working-manager','coder','qa-reviewer']
-    state['skills']=['task-classification','safe-refactoring','code-review','test-strategy']
-    state['commands']=['team-status','team-review']
-    # managed_files'i değiştirme — önceki standard kurulumundaki tüm dosyalar kalsın,
-    # --update prev_managed'de olup desired'da olmayanları temizler.
-    (p/'.opencode/hhc-team.json').write_text(json.dumps(state,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    user=p/'.opencode/agents/user.md'; user.write_text('keep',encoding='utf-8')
+    state_path=p/'.opencode/hhc-team.json'; state=json.loads(state_path.read_text(encoding='utf-8'))
+    state['kit_version']='1.1.1'; state['preset']='minimal'; state.pop('profile',None); state['roles']=['working-manager','coder','qa-reviewer']
+    state_path.write_text(json.dumps(state),encoding='utf-8')
     r=run(KIT/'scripts/install.py','--project-path',p,'--update')
     assert r.returncode==0, r.stderr
-    assert not (p/'.opencode/agents/architect.md').exists()
-    assert user.read_text(encoding='utf-8')=='kullanıcı dosyası'
-    assert (p/'.opencode/agents/working-manager.md').exists()
-    assert (p/'.opencode/agents/coder.md').exists()
-
+    new=json.loads(state_path.read_text(encoding='utf-8'))
+    assert new['profile']=='basic'
+    assert (p/'.opencode/agents/architect.md').exists()
+    assert (p/'.opencode/agents/security-reviewer.md').exists()
+    assert user.read_text(encoding='utf-8')=='keep'
 
 def test_update_scout_playwright_state_preserved(tmp_path):
     p=tmp_path/'app'
@@ -1300,3 +1289,264 @@ def test_normalize_version_handles_v_prefix_and_comparison():
     assert ug._compare((2,), (1, 9, 9)) == '>'
     # Shorter tuple equals prefix of longer in Python tuple ordering
     assert ug._compare((1,), (1, 0, 0)) == '<'
+
+# 1.2.0 SMART profile-policy architecture
+
+def _state(project: Path):
+    return json.loads((project/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
+
+
+def test_profile_default_is_standard_and_normal_primary_is_working_manager(tmp_path):
+    p=tmp_path/'app'
+    r=run(KIT/'scripts/install.py','--project-path',p)
+    assert r.returncode==0, r.stderr
+    s=_state(p)
+    assert s['profile']=='standard' and s['preset']=='standard'
+    assert s['team_mode']=='multi' and s['manager_mode']=='hands_on'
+    assert s['primary_agent']=='working-manager'
+
+
+def test_basic_keeps_security_and_all_specialists_available(tmp_path):
+    p=tmp_path/'app'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','basic')
+    assert r.returncode==0, r.stderr
+    s=_state(p)
+    expected={'architect','repository-explorer','coder','qa-reviewer','visual-qa','security-reviewer'}
+    assert expected <= set(s['roles'])
+    manager=(p/'.opencode/agents/working-manager.md').read_text(encoding='utf-8')
+    assert 'security-reviewer: allow' in manager
+    assert 'Çalışma Profili: Basic' in manager
+    assert 'gerekli uzmanı sırf profil nedeniyle kapatma' in manager
+
+
+def test_profile_policy_overlay_is_small_and_roster_stable(tmp_path):
+    role_sets=[]; skill_sets=[]; sizes=[]
+    for profile in ('basic','standard','powerful'):
+        p=tmp_path/profile
+        assert run(KIT/'scripts/install.py','--project-path',p,'--preset',profile).returncode==0
+        s=_state(p); role_sets.append(s['roles']); skill_sets.append(s['skills'])
+        text=(p/'.opencode/agents/working-manager.md').read_text(encoding='utf-8')
+        sizes.append(len(text.encode('utf-8')))
+        assert f'Çalışma Profili: {profile.title()}' in text
+    assert role_sets[0]==role_sets[1]==role_sets[2]
+    assert skill_sets[0]==skill_sets[1]==skill_sets[2]
+    assert max(sizes)-min(sizes) < 800
+    assert not any((KIT/'roles').glob('manager-basic.md'))
+
+
+def test_powerful_policy_has_controlled_parallelism_and_no_default_duplicate(tmp_path):
+    p=tmp_path/'app'
+    assert run(KIT/'scripts/install.py','--project-path',p,'--preset','powerful').returncode==0
+    text=(p/'.opencode/agents/working-manager.md').read_text(encoding='utf-8')
+    assert 'Çalışma Profili: Powerful' in text
+    assert 'Bağımsız ve yüksek değerli işleri daha istekli paralelleştir' in text
+    assert 'Aynı rolü varsayılan olarak çoğaltma' in text
+    assert 'gerekli kalite kapıları geçtiğinde dur' in text
+    assert 'Bağımlı işler' in text and 'sıralı kalır' in text
+
+
+def test_project_characteristics_multilabel_react_dotnet_docker(tmp_path):
+    p=tmp_path/'app'; p.mkdir()
+    (p/'package.json').write_text(json.dumps({'dependencies':{'react':'1','vite':'1'}}),encoding='utf-8')
+    (p/'app.csproj').write_text('<Project Sdk="Microsoft.NET.Sdk.Web"></Project>',encoding='utf-8')
+    (p/'Dockerfile').write_text('FROM scratch',encoding='utf-8')
+    r=run(KIT/'scripts/project_characteristics.py','--project-path',p)
+    assert r.returncode==0, r.stderr
+    d=json.loads(r.stdout)
+    assert d['browser_ui']['detected'] is True
+    assert d['backend']['detected'] is True
+    assert d['containerized']['detected'] is True
+
+
+def test_project_characteristics_weak_package_json_does_not_force_browser_ui(tmp_path):
+    p=tmp_path/'app'; p.mkdir()
+    (p/'package.json').write_text(json.dumps({'dependencies':{'lodash':'1'}}),encoding='utf-8')
+    d=json.loads(run(KIT/'scripts/project_characteristics.py','--project-path',p).stdout)
+    assert d['browser_ui']['detected'] is False
+
+
+def test_project_characteristics_detects_wordpress_as_multilabel(tmp_path):
+    p=tmp_path/'site'; (p/'wp-content').mkdir(parents=True)
+    d=json.loads(run(KIT/'scripts/project_characteristics.py','--project-path',p).stdout)
+    assert d['wordpress']['detected'] is True
+    assert d['browser_ui']['detected'] is True
+
+
+def test_project_characteristics_detects_wpf_desktop(tmp_path):
+    p=tmp_path/'desktop'; p.mkdir()
+    (p/'app.csproj').write_text('<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><UseWPF>true</UseWPF></PropertyGroup></Project>',encoding='utf-8')
+    d=json.loads(run(KIT/'scripts/project_characteristics.py','--project-path',p).stdout)
+    assert d['desktop_ui']['detected'] is True
+    assert d['browser_ui']['detected'] is False
+
+
+def test_playwright_is_characteristic_gated_not_profile_gated(tmp_path):
+    p=tmp_path/'web'; p.mkdir()
+    (p/'package.json').write_text(json.dumps({'dependencies':{'react':'1'}}),encoding='utf-8')
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','basic','--playwright','enabled')
+    assert r.returncode==0, r.stderr
+    assert _state(p)['playwright_enabled'] is True
+    p2=tmp_path/'plain'
+    r=run(KIT/'scripts/install.py','--project-path',p2,'--preset','powerful','--playwright','enabled')
+    assert r.returncode!=0
+    assert 'browser_ui' in r.stderr
+
+
+def test_scout_is_profile_independent(tmp_path):
+    for profile in ('basic','powerful'):
+        p=tmp_path/profile
+        r=run(KIT/'scripts/install.py','--project-path',p,'--preset',profile,'--scout','enabled','--scout-model','provider/research')
+        assert r.returncode==0, r.stderr
+        s=_state(p)
+        assert s['scout_enabled'] is True and s['scout_model']=='provider/research'
+        assert 'scout: allow' in (p/'.opencode/agents/working-manager.md').read_text(encoding='utf-8')
+
+
+def test_legacy_profile_mappings_and_characteristic_hints(tmp_path):
+    cases=[('minimal','basic',None),('standard','standard',None),('high-assurance','powerful',None),('web-development','standard','browser_ui'),('desktop-development','standard','desktop_ui')]
+    for old,new,char in cases:
+        p=tmp_path/old
+        r=run(KIT/'scripts/install.py','--project-path',p,'--preset',old)
+        assert r.returncode==0, (old,r.stderr)
+        s=_state(p)
+        assert s['profile']==new
+        if char: assert s['project_characteristics'][char]['detected'] is True
+
+
+def test_profile_reconfigure_preserves_explicit_model_assignments_when_resupplied(tmp_path):
+    p=tmp_path/'app'
+    models=['working-manager=provider/mgr','architect=provider/a','repository-explorer=provider/r','coder=provider/c','qa-reviewer=provider/q','visual-qa=provider/v','security-reviewer=provider/s']
+    cmd=[KIT/'scripts/install.py','--project-path',p,'--preset','standard']
+    for m in models: cmd += ['--model',m]
+    assert run(*cmd).returncode==0
+    cmd=[KIT/'scripts/install.py','--project-path',p,'--reconfigure','--preset','powerful']
+    for m in models: cmd += ['--model',m]
+    r=run(*cmd); assert r.returncode==0, r.stderr
+    s=_state(p)
+    assert s['profile']=='powerful'
+    assert s['models']['working-manager']=='provider/mgr'
+    assert s['models']['security-reviewer']=='provider/s'
+
+
+def test_no_silent_premium_fallback_or_profile_model_override():
+    install=(KIT/'scripts/install.py').read_text(encoding='utf-8').lower()
+    readme=(KIT/'README.md').read_text(encoding='utf-8').lower()
+    assert 'premium' not in install or 'fallback' not in install
+    assert 'sessiz premium fallback' in readme or 'sessizce daha pahalı' in readme
+    for name in ('basic','standard','powerful'):
+        data=json.loads((KIT/f'presets/{name}.json').read_text(encoding='utf-8'))
+        assert 'model' not in data and 'models' not in data
+
+
+def test_profile_names_and_semantics_have_tr_en_documentation_parity():
+    tr=(KIT/'README.md').read_text(encoding='utf-8')
+    en=(KIT/'README.en.md').read_text(encoding='utf-8')
+    for name in ('Basic','Standard','Powerful'):
+        assert name in tr and name in en
+    for technical in ('browser_ui','desktop_ui','security-reviewer','visual-qa'):
+        assert technical in tr and technical in en
+    assert 'varsayılan ve önerilen' in tr.lower()
+    assert 'default and recommended' in en.lower()
+
+
+def test_main_profile_surface_exposes_only_three_and_custom_is_advanced():
+    wizard=(KIT/'bootstrap/commands/hhc-install.md').read_text(encoding='utf-8')
+    preset_files={p.stem for p in (KIT/'presets').glob('*.json')}
+    assert preset_files=={'basic','standard','powerful'}
+    assert 'Yalnız üç seçenek sun' in wizard
+    assert 'Eski `custom` profilin görevi artık buradadır.' in wizard
+    profile_section=wizard.split('## 2.',1)[0]
+    assert '- **Web Development**' not in profile_section and '- **Desktop Development**' not in profile_section and '- **High Assurance**' not in profile_section
+
+
+def test_background_is_treated_as_stable_without_experimental_user_warning():
+    manager=(KIT/'roles/manager.md').read_text(encoding='utf-8').lower()
+    bootstrap=(KIT/'bootstrap/skills/hhc-project-bootstrap/SKILL.md').read_text(encoding='utf-8').lower()
+    assert 'background' in manager and 'background' in bootstrap
+    assert 'experimental' not in manager and 'deneysel' not in manager
+    assert 'dependency-independent' in bootstrap
+
+
+# ── 1.2.0 audit fixes regression tests ──
+
+def test_update_legacy_solo_agent_state_normalizes_to_working_manager(tmp_path):
+    """Issue #1: rc.16 solo-agent state ile --update crash yapmamalı; working-manager'a normalize edilmeli."""
+    p=tmp_path/'app'
+    state_path=p/'.opencode/hhc-team.json'; state_path.parent.mkdir(parents=True)
+    state={'schema_version':1,'kit_version':'1.1.0-rc.16','team_mode':'single','preset':'minimal',
+           'primary_agent':'solo-agent','roles':['solo-agent'],'skills':[],'commands':[],'model_policy':'shared',
+           'shared_model':'provider/old','models':{'solo-agent':'provider/old'},
+           'managed_files':['.opencode/agents/solo-agent.md'],
+           'config_created_by_hhc':False,'config_sha256':None,'manager_mode':None}
+    state_path.write_text(json.dumps(state))
+    # Simulate previous install artifact
+    solo=p/'.opencode/agents/solo-agent.md'; solo.parent.mkdir(parents=True)
+    solo.write_text('legacy solo agent')
+    # --update should NOT crash (HHC-INSTALL-001)
+    r=run(KIT/'scripts/install.py','--project-path',p,'--update')
+    assert r.returncode==0, f'unexpected crash; stderr={r.stderr}'
+    new_state=json.loads(state_path.read_text(encoding='utf-8'))
+    assert new_state['primary_agent']=='working-manager'
+    assert new_state['manager_mode']=='hands_on'
+    assert 'solo-agent' not in new_state['roles']
+    assert 'working-manager' in new_state['roles']
+    # solo-agent.md artık mevcut değil
+    assert not solo.exists()
+    # working-manager.md kurulmuş olmalı
+    assert (p/'.opencode/agents/working-manager.md').is_file()
+
+
+def test_project_characteristics_detects_ios_mobile(tmp_path):
+    """Issue #3: .xcodeproj dizinleri artık mobile olarak işaretlenmeli."""
+    p=tmp_path/'ios-app'; p.mkdir()
+    # .xcodeproj bir dizindir; _walk_names artık dizin adlarını da toplar
+    xcode=p/'MyApp.xcodeproj'; xcode.mkdir()
+    (xcode/'project.pbxproj').write_text('// xcode')
+    # Ek iOS dosya sinyalleri
+    (p/'Info.plist').write_text('<?xml version="1.0">')
+    (p/'AppDelegate.swift').write_text('import UIKit')
+    r=run(KIT/'scripts/project_characteristics.py','--project-path',p)
+    assert r.returncode==0, r.stderr
+    d=json.loads(r.stdout)
+    assert d['mobile']['detected'] is True, f'mobile not detected: {d["mobile"]}'
+    assert d['mobile']['score'] >= 2
+
+
+def test_reconfigure_legacy_custom_preserves_specialists(tmp_path):
+    """Issue #4: legacy custom state ile --reconfigure uzman listesini korumalı."""
+    p=tmp_path/'app'
+    # İlk kurulum: custom + seçili uzmanlar
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','custom','--roles','coder,qa-reviewer')
+    assert r.returncode==0, r.stderr
+    state_path=p/'.opencode/hhc-team.json'
+    state=json.loads(state_path.read_text(encoding='utf-8'))
+    assert state['advanced_roles']==['coder','qa-reviewer']
+    # Reconfigure ile profil değiştir
+    r=run(KIT/'scripts/install.py','--project-path',p,'--reconfigure','--preset','basic')
+    assert r.returncode==0, r.stderr
+    new_state=json.loads(state_path.read_text(encoding='utf-8'))
+    # Uzmanlar korunmalı
+    assert 'coder' in new_state['roles']
+    assert 'qa-reviewer' in new_state['roles']
+    assert new_state['advanced_roles']==['coder','qa-reviewer']
+    # Profil değişmiş olmalı
+    assert new_state['profile']=='basic'
+
+
+def test_profile_policy_injected_once_and_only_to_managers(tmp_path):
+    """Issue #4: profil policy yalnızca manager/working-manager rollerine ve birer kez enjekte edilmeli."""
+    p=tmp_path/'app'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','standard')
+    assert r.returncode==0, r.stderr
+    agents_dir=p/'.opencode/agents'
+    # working-manager policy overlay'e sahip olmalı (tek sefer)
+    wm_text=(agents_dir/'working-manager.md').read_text(encoding='utf-8')
+    assert 'Çalışma Profili: Standard' in wm_text
+    assert wm_text.count('Çalışma Profili: Standard') == 1
+    # Diğer rollerde policy OLMAMALI
+    for agent in agents_dir.glob('*.md'):
+        role=agent.stem
+        if role in ('manager','working-manager'):
+            continue
+        text=agent.read_text(encoding='utf-8')
+        assert 'Çalışma Profili:' not in text, f'{role} should not have policy overlay'

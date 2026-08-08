@@ -1,28 +1,21 @@
 ---
-description: Uzak Git kod deposunu klonla ve HHC kurulum asistanını çalıştır
+description: Uzak Git deposunu klonlayıp HHC AI Team Kit'i kur
 ---
 
-# HHC AI Team Kit — Uzak Kod Deposu Kurulumu
+# HHC AI Team Kit — Uzak Projeye Kurulum
 
-Kullanıcıdan Git URL'sini al. Önce erişimi doğrula, sonra güvenli bir hedefe klonla. Credential/token isteme veya loglama.
+Repo URL'sini doğrula ve `remote_install.py` ile klonlandıktan sonra normal SMART kurulum karar ağacını uygula.
 
-Klonlama tamamlandıktan sonra yerel `/hhc-install` ile **aynı rc.17 sihirbazını** uygula:
-1. Profil ilk soru.
-2. Yalnız Özel profilde uzman rol seçimi.
-3. Tek Ana Ajan / Çoklu Ajan Ekibi.
-4. Tek Ana Ajanda yönetici otomatik Çalışan Yönetici; Çoklu Ajanda yönetici tipi sor.
-5. Scout kullanımı: Evet / Hayır. Hayır varsayılandır; Evet ise model keşfinden sonra Scout / Dış Araştırma için ayrıca model seç.
-6. Profil Web Development ise Playwright MCP: Evet / Hayır sor; varsayılan Hayır. Web dışı profilde sorma.
-7. Model keşfi + capability/context/maliyet danışmanı klonlanan proje dizini için `model_advisor.py --project-path <hedef> --role <kurulu-role> ... [--role scout]` ile yapılır.
-8. `INCOMPATIBLE` model seçilmez; `WARNING`/UNKNOWN için explicit kullanıcı onayı alınır. Metadata yoksa kurulum kırılmaz.
-9. Tek Ana Ajanda bir model bütün rollere; Çoklu Ajanda doğrudan rol → model.
-10. Son özet ve onay.
+1. Profil: **Basic / Standard / Powerful** (Standard varsayılan).
+2. Team mode normal kullanıcıya sorulmaz; `multi + hands_on` kullanılır. Legacy/Advanced seçenekler korunur.
+3. Repo klonlandıktan sonra proje özellikleri otomatik algılanır; Web/Desktop profile sorulmaz.
+4. Scout: Evet/Hayır, default Hayır.
+5. `browser_ui` doğrulanmışsa Playwright: Evet/Hayır, default Hayır.
+6. Model advisor ile bütün kurulu roller için model kararlarını al; Scout açıksa ayrı Scout modeli seç.
+7. Son özet + onay.
 
-`Model politikası`, `OpenCode'u devral`, `Hangi roller farklı olsun?` veya `Tam bağımsız tek ajan` sorularını gösterme.
+Backend örneği:
 
-CLI resmî kaynaktır; cache yalnız **UNDOCUMENTED / BEST-EFFORT** ve aktifliği doğrulanabilen provider'larla filtrelenmiş fallback olabilir. Refresh yalnız kullanıcı açıkça isterse bir kez çalıştırılır.
+`{{PYTHON}} "{{KIT_ROOT}}/scripts/remote_install.py" --repo "$ARGUMENTS" --team-mode multi --manager-mode hands_on --preset <basic|standard|powerful> --model role=provider/model ... --scout <enabled|disabled> [--scout-model provider/model] --playwright <enabled|disabled> --validate-model-capabilities`
 
-Backend:
-`{{PYTHON}} "{{KIT_ROOT}}/scripts/remote_install.py" --repo "$ARGUMENTS" --team-mode <single|multi> --preset <profil> [--manager-mode <mod>] [--roles ...] [--shared-model provider/model | --model role=provider/model ...] --scout <enabled|disabled> [--scout-model provider/model] --playwright <enabled|disabled> --validate-model-capabilities`
-
-Kurulum sonucunda `config.action` `preserved-existing-config` ise hedef depodaki mevcut `opencode.jsonc` dosyasının korunduğunu ve HHC'nin bu config değerlerini değiştirmediğini kullanıcıya bildir.
+Playwright profile bağlı değildir; klonlanan repo `browser_ui` özelliğini doğrulamıyorsa backend açmayı reddeder. Gelişmiş explicit override gerektiğinde `--project-characteristic browser_ui` kullanılabilir.
