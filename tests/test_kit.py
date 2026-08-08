@@ -989,6 +989,314 @@ def test_global_bootstrap_contains_update(tmp_path, monkeypatch):
     assert 'UP_TO_DATE' in text
     assert 'UPDATED' in text
     assert 'sessiz' in text
+    assert 'update_global.py' in text
+    assert 'OFFLINE' in text
+    assert 'RATE_LIMITED' in text
+    assert '--no-remote' in text
     # Placeholder replace doğrulaması
     assert '{{KIT_ROOT}}' not in text
     assert '{{PYTHON}}' not in text
+
+
+# ── update_global tests ──
+
+import hashlib, shutil, zipfile
+from pathlib import Path
+
+def _import_update_global():
+    scripts = str(KIT / 'scripts')
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    import update_global
+    return update_global
+
+def _ug_setup(monkeypatch, tmp_path, version='1.1.1'):
+    """Common setup for update_global tests: imports module, creates current/ with VERSION."""
+    ug = _import_update_global()
+    current = tmp_path / 'current'
+    current.mkdir(parents=True, exist_ok=True)
+    (current / 'VERSION').write_text(version, encoding='utf-8')
+    monkeypatch.setattr(ug, 'runtime_root', lambda: current)
+    monkeypatch.setattr(ug, 'install_bootstrap', lambda dst: None)
+    return ug, current
+
+def _make_fake_release(tmp_path, version, extra_files=None):
+    """Create minimal kit zip+manifest at tmp_path. Returns (manifest_dict, zip_path)."""
+    files = {
+        'VERSION': version,
+        'README.md': f'# HHC Kit v{version}\n',
+        'roles/manager.md': f'# Manager v{version}\n',
+    }
+    if extra_files:
+        files.update(extra_files)
+
+    staging = tmp_path / 'staging'
+    for rel, text in files.items():
+        p = staging / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(text, encoding='utf-8')
+
+    manifest_files = {}
+    for rel in sorted(files):
+        p = staging / rel
+        manifest_files[rel] = hashlib.sha256(p.read_bytes()).hexdigest()
+
+    zip_path = tmp_path / f'HHC-AI-Team-Kit-{version}.zip'
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for rel in sorted(files):
+            zf.write(staging / rel, rel)
+
+    zip_sha = hashlib.sha256(zip_path.read_bytes()).hexdigest()
+
+    manifest = {
+        'kit_name': 'HHC AI Team Kit',
+        'version': version,
+        'archive': f'HHC-AI-Team-Kit-{version}.zip',
+        'archive_sha256': zip_sha,
+        'file_count': len(files),
+        'files': manifest_files,
+    }
+    (tmp_path / f'RELEASE-MANIFEST-{version}.json').write_text(
+        json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+    return manifest, zip_path
+
+def _fake_release_api(tag_name):
+    """Return a fake GitHub releases/latest API response."""
+    return {
+        'tag_name': tag_name,
+        'assets': [
+            {'name': f'RELEASE-MANIFEST-{tag_name}.json',
+             'browser_download_url': f'https://example.com/releases/{tag_name}/manifest.json'},
+            {'name': f'HHC-AI-Team-Kit-{tag_name}.zip',
+             'browser_download_url': f'https://example.com/releases/{tag_name}/update.zip'},
+        ],
+    }
+
+def _patch_network_full_flow(monkeypatch, ug, release_api, manifest, zip_path, zip_sha):
+    """Monkeypatch _fetch_json and _download for a full update flow."""
+    def fake_fetch(url, token=None, timeout=30):
+        if 'releases/latest' in (url or ''):
+            return release_api, None
+        else:
+            return manifest, None
+
+    def fake_download(url, dest, timeout=30):
+        shutil.copy2(zip_path, dest)
+        return zip_sha, None
+
+    monkeypatch.setattr(ug, '_fetch_json', fake_fetch)
+    monkeypatch.setattr(ug, '_download', fake_download)
+
+
+def test_update_global_newer_release_updates_current(tmp_path, monkeypatch, capsys):
+    """Newer remote (1.1.2) → UPDATED, current/VERSION==1.1.2, bootstrap refreshed."""
+    ug, current = _ug_setup(monkeypatch, tmp_path, '1.1.1')
+
+    release_dir = tmp_path / 'release'
+    release_dir.mkdir()
+    manifest, zip_path = _make_fake_release(release_dir, '1.1.2')
+
+    _patch_network_full_flow(monkeypatch, ug,
+                             _fake_release_api('v1.1.2'),
+                             manifest, zip_path, manifest['archive_sha256'])
+    monkeypatch.setattr(sys, 'argv', ['update_global.py'])
+
+    exit_code = ug.main()
+    out, err = capsys.readouterr()
+
+    assert exit_code == 0
+    result = json.loads(out)
+    assert result['status'] == 'UPDATED'
+    assert result['current_version'] == '1.1.2'
+    assert result['swapped_files'] >= 2  # VERSION + README + roles/manager
+    assert (current / 'VERSION').read_text(encoding='utf-8').strip() == '1.1.2'
+    # Verify content actually changed
+    for rel in manifest['files']:
+        if rel == 'VERSION':
+            continue
+        p = current / rel
+        assert p.is_file(), f'Missing: {rel}'
+        content = p.read_text(encoding='utf-8')
+        assert '1.1.2' in content, f'{rel} not updated'
+
+
+def test_update_global_equal_release_no_op(tmp_path, monkeypatch, capsys):
+    """Equal version → UP_TO_DATE, current/ unchanged, idempotent on 2nd run."""
+    ug, current = _ug_setup(monkeypatch, tmp_path, '1.1.1')
+
+    before_files = {}
+    for p in current.rglob('*'):
+        if p.is_file():
+            before_files[str(p.relative_to(current))] = p.read_bytes()
+
+    monkeypatch.setattr(ug, '_fetch_json',
+                        lambda url, token=None, timeout=30: (_fake_release_api('v1.1.1'), None))
+    monkeypatch.setattr(sys, 'argv', ['update_global.py'])
+
+    exit_code = ug.main()
+    out, err = capsys.readouterr()
+
+    assert exit_code == 0
+    result = json.loads(out)
+    assert result['status'] == 'UP_TO_DATE'
+    assert result['current_version'] == '1.1.1'
+
+    # Idempotent: no files changed
+    after_files = {}
+    for p in current.rglob('*'):
+        if p.is_file():
+            after_files[str(p.relative_to(current))] = p.read_bytes()
+    assert before_files == after_files
+
+    # Second run → same result
+    exit_code2 = ug.main()
+    out2, _ = capsys.readouterr()
+    assert exit_code2 == 0
+    assert json.loads(out2)['status'] == 'UP_TO_DATE'
+
+
+def test_update_global_older_release_no_downgrade(tmp_path, monkeypatch, capsys):
+    """Older remote → UP_TO_DATE, current/ unchanged (no downgrade)."""
+    ug, current = _ug_setup(monkeypatch, tmp_path, '1.1.2')
+
+    monkeypatch.setattr(ug, '_fetch_json',
+                        lambda url, token=None, timeout=30: (_fake_release_api('v1.1.0'), None))
+    monkeypatch.setattr(sys, 'argv', ['update_global.py'])
+
+    exit_code = ug.main()
+    out, err = capsys.readouterr()
+
+    assert exit_code == 0
+    result = json.loads(out)
+    assert result['status'] == 'UP_TO_DATE'
+    assert result['current_version'] == '1.1.2'
+    assert (current / 'VERSION').read_text(encoding='utf-8').strip() == '1.1.2'
+
+
+def test_update_global_offline_falls_back_local(tmp_path, monkeypatch, capsys):
+    """Network unavailable → OFFLINE, exit 0, current/ untouched."""
+    ug, current = _ug_setup(monkeypatch, tmp_path, '1.1.1')
+
+    monkeypatch.setattr(ug, '_fetch_json',
+                        lambda url, token=None, timeout=30: (None, 'URLError: connection refused'))
+    monkeypatch.setattr(sys, 'argv', ['update_global.py'])
+
+    exit_code = ug.main()
+    out, err = capsys.readouterr()
+
+    assert exit_code == 0
+    result = json.loads(out)
+    assert result['status'] == 'OFFLINE'
+    assert result['current_version'] == '1.1.1'
+    assert (current / 'VERSION').read_text(encoding='utf-8').strip() == '1.1.1'
+
+
+def test_update_global_no_releases_falls_back_local(tmp_path, monkeypatch, capsys):
+    """404 from API → NO_RELEASES, exit 0."""
+    ug, current = _ug_setup(monkeypatch, tmp_path, '1.1.1')
+
+    monkeypatch.setattr(ug, '_fetch_json',
+                        lambda url, token=None, timeout=30: (None, 'HTTP 404: Not Found'))
+    monkeypatch.setattr(sys, 'argv', ['update_global.py'])
+
+    exit_code = ug.main()
+    out, err = capsys.readouterr()
+
+    assert exit_code == 0
+    result = json.loads(out)
+    assert result['status'] == 'NO_RELEASES'
+    assert result['current_version'] == '1.1.1'
+
+
+def test_update_global_checksum_mismatch_refuses_install(tmp_path, monkeypatch, capsys):
+    """Zip sha256 mismatch → ERROR, current/ untouched, exit 0."""
+    ug, current = _ug_setup(monkeypatch, tmp_path, '1.1.1')
+
+    release_dir = tmp_path / 'release'
+    release_dir.mkdir()
+    manifest, zip_path = _make_fake_release(release_dir, '1.1.2')
+
+    # API/network OK but _download returns WRONG sha
+    def fake_fetch(url, token=None, timeout=30):
+        if 'releases/latest' in (url or ''):
+            return _fake_release_api('v1.1.2'), None
+        else:
+            return manifest, None
+
+    def fake_download(url, dest, timeout=30):
+        shutil.copy2(zip_path, dest)
+        return 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef', None
+
+    monkeypatch.setattr(ug, '_fetch_json', fake_fetch)
+    monkeypatch.setattr(ug, '_download', fake_download)
+    monkeypatch.setattr(sys, 'argv', ['update_global.py'])
+
+    exit_code = ug.main()
+    out, err = capsys.readouterr()
+
+    assert exit_code == 0
+    result = json.loads(out)
+    assert result['status'] == 'ERROR'
+    assert 'Bütünlük' in result.get('error', '')
+    assert (current / 'VERSION').read_text(encoding='utf-8').strip() == '1.1.1'  # untouched
+
+
+def test_update_global_rate_limited_falls_back_local(tmp_path, monkeypatch, capsys):
+    """403 + rate limit → RATE_LIMITED, exit 0."""
+    ug, current = _ug_setup(monkeypatch, tmp_path, '1.1.1')
+
+    monkeypatch.setattr(ug, '_fetch_json',
+                        lambda url, token=None, timeout=30: (None, 'HTTP 403: Forbidden (rate limited)'))
+    monkeypatch.setattr(sys, 'argv', ['update_global.py'])
+
+    exit_code = ug.main()
+    out, err = capsys.readouterr()
+
+    assert exit_code == 0
+    result = json.loads(out)
+    assert result['status'] == 'RATE_LIMITED'
+    assert result['current_version'] == '1.1.1'
+
+
+def test_update_global_no_remote_skips_network(tmp_path, monkeypatch, capsys):
+    """--no-remote → LOCAL_ONLY, no network call."""
+    ug, current = _ug_setup(monkeypatch, tmp_path, '1.1.1')
+
+    network_called = []
+    monkeypatch.setattr(ug, '_fetch_json',
+                        lambda url, token=None, timeout=30: network_called.append(1) or (None, None))
+    monkeypatch.setattr(sys, 'argv', ['update_global.py', '--no-remote'])
+
+    exit_code = ug.main()
+    out, err = capsys.readouterr()
+
+    assert exit_code == 0
+    result = json.loads(out)
+    assert result['status'] == 'LOCAL_ONLY'
+    assert result['current_version'] == '1.1.1'
+    assert len(network_called) == 0  # network never called
+
+
+def test_normalize_version_handles_v_prefix_and_comparison():
+    """Unit test for _normalize_version and _compare."""
+    ug = _import_update_global()
+
+    # _normalize_version
+    assert ug._normalize_version('v1.1.1') == (1, 1, 1)
+    assert ug._normalize_version('V1.1.1') == (1, 1, 1)
+    assert ug._normalize_version('1.1.1') == (1, 1, 1)
+    assert ug._normalize_version('1.2.0') == (1, 2, 0)
+    assert ug._normalize_version('1.10.3') == (1, 10, 3)
+    assert ug._normalize_version('2.0') == (2, 0)
+    assert ug._normalize_version('') is None
+    assert ug._normalize_version('abc') is None
+    assert ug._normalize_version('v1.alpha') is None
+
+    # _compare
+    assert ug._compare((1, 2, 0), (1, 1, 9)) == '>'
+    assert ug._compare((1, 1, 1), (1, 1, 1)) == '=='
+    assert ug._compare((1, 0, 0), (2, 0, 0)) == '<'
+    assert ug._compare((1, 10, 0), (1, 9, 9)) == '>'
+    assert ug._compare((2,), (1, 9, 9)) == '>'
+    # Shorter tuple equals prefix of longer in Python tuple ordering
+    assert ug._compare((1,), (1, 0, 0)) == '<'
