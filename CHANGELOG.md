@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.3
+
+- refactor: /hhc-install-remote komutu ve remote_install.py kaldırıldı — bootstrap paradoksunu çözmüyordu (HHC yüklü olmayan PC'de çalışmaz, yüklü PC'de /hhc-install + elle git clone yeterli).
+
 ## 1.2.2
 
 - feat: /hhc-status komutu ve install.py --status — mevcut HHC yapılandırma durumunu salt-okunur raporlar (sürüm, profil, roller, modeller, Scout, Playwright, MCP).

@@ -31,7 +31,6 @@ Requirements: Git and Python 3.9+.
 Global OpenCode commands:
 
 - `/hhc-install`
-- `/hhc-install-remote`
 - `/hhc-reconfigure`
 - `/hhc-update`
 
@@ -129,8 +128,4 @@ Existing user config is never silently overwritten. `subagent_depth: 1` remains 
 
 ## 10. Remote target repository
 
-```text
-/hhc-install-remote <git-url>
-```
-
-Clones the target repo and applies the same Basic/Standard/Powerful SMART setup flow.
+To install on a remote repo: clone it with `git clone`, then run `/hhc-install`.

@@ -37,7 +37,4 @@ Normal kurulumda backend:
 Yeniden yapılandırma:
 `{{PYTHON}} "{{KIT_ROOT}}/scripts/install.py" --project-path <proje> --reconfigure ...`
 
-Uzak backend:
-`{{PYTHON}} "{{KIT_ROOT}}/scripts/remote_install.py" --repo <git-url> ...`
-
 Legacy state migration'da rol/model/Scout/Playwright seçimlerini kaybetme. Kullanıcıya eski preset listesini yeniden gösterme.

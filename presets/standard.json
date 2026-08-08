@@ -1,6 +1,6 @@
 {
   "name": "standard",
-  "kit_version": "1.2.2",
+  "kit_version": "1.2.3",
   "roles": [
     "manager",
     "architect",

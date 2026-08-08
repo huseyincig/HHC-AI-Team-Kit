@@ -23,7 +23,7 @@ def copy_runtime(dst:Path):
     shutil.copytree(KIT,dst,ignore=ignore)
 def install_bootstrap(dst:Path):
     oc=opencode_root(); py=Path(sys.executable).resolve()
-    for rel in ['commands/hhc-install.md','commands/hhc-install-remote.md','commands/hhc-reconfigure.md','commands/hhc-update.md','commands/hhc-status.md']:
+    for rel in ['commands/hhc-install.md','commands/hhc-reconfigure.md','commands/hhc-update.md','commands/hhc-status.md']:
         src=dst/'bootstrap'/rel; target=oc/rel; target.parent.mkdir(parents=True,exist_ok=True)
         target.write_text(src.read_text(encoding='utf-8').replace('{{KIT_ROOT}}',str(dst)).replace('{{PYTHON}}',str(py)),encoding='utf-8',newline='')
     src=dst/'bootstrap/skills/hhc-project-bootstrap'; target=oc/'skills/hhc-project-bootstrap'

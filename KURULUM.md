@@ -31,7 +31,6 @@ Gereksinimler: Git ve Python 3.9+.
 Makine kurulumu şu global OpenCode komutlarını ekler:
 
 - `/hhc-install`
-- `/hhc-install-remote`
 - `/hhc-reconfigure`
 - `/hhc-update`
 
@@ -142,8 +141,4 @@ Kullanıcının mevcut yapılandırması sessizce ezilmez. `subagent_depth: 1` k
 
 ## 10. Uzak hedef repo
 
-```text
-/hhc-install-remote <git-url>
-```
-
-Bu komut hedef Git reposunu klonlar ve aynı Basic/Standard/Powerful SMART kurulum akışını uygular.
+Uzak repo kurulumu için: repoyu `git clone` ile klonlayın, ardından `/hhc-install` çalıştırın.

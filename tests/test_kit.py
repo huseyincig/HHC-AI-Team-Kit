@@ -121,7 +121,6 @@ def test_global_bootstrap_contains_reconfigure(tmp_path, monkeypatch):
     assert r.returncode==0, r.stderr
     root=tmp_path/'config/opencode/commands'
     assert (root/'hhc-install.md').is_file()
-    assert (root/'hhc-install-remote.md').is_file()
     assert (root/'hhc-reconfigure.md').is_file()
     text=(root/'hhc-install.md').read_text(encoding='utf-8')
     assert 'Çalışma profili — ilk gerçek kullanıcı kararı' in text
@@ -853,11 +852,6 @@ def test_model_advisor_never_invents_missing_cost(tmp_path):
     assert row['cost_input'] is None and row['cost_output'] is None
 
 
-def test_remote_install_help_includes_model_metadata_file():
-    r=run(KIT/'scripts/remote_install.py','--help')
-    assert '--model-metadata-file' in r.stdout
-
-
 # ── /hhc-update tests ──
 
 def test_update_bumps_kit_version_and_preserves_config(tmp_path):
@@ -1399,7 +1393,7 @@ def test_update_global_up_to_date_syncs_bootstrap_to_global_config(tmp_path, mon
     bootstrap_commands.mkdir(parents=True)
     bootstrap_skill.mkdir(parents=True)
 
-    cmd_files = ['hhc-install.md', 'hhc-install-remote.md', 'hhc-reconfigure.md', 'hhc-update.md', 'hhc-status.md']
+    cmd_files = ['hhc-install.md', 'hhc-reconfigure.md', 'hhc-update.md', 'hhc-status.md']
     for cmd in cmd_files:
         (bootstrap_commands / cmd).write_text(
             f'# {cmd}\n\nTest content with {{{{KIT_ROOT}}}} and {{{{PYTHON}}}} placeholders.\n',
