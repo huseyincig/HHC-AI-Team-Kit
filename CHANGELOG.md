@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- `/hhc-update` komutu ve `install.py --update` sessiz senkron: global kit yeni sürümünde proje dosyalarını interaktif olmadan yeniler; sürüm eşitse kısa-devre.
+
 ## 1.1.0
 
 - İlk kararlı sürüm. rc.19–rc.21 pre-release döngüsündeki tüm değişiklikleri içerir.

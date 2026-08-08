@@ -164,63 +164,86 @@ def main()->int:
     ap.add_argument('--validate-model-capabilities',action='store_true',help='models.dev metadata ile açık zorunlu capability eksiklerini doğrula')
     ap.add_argument('--model-metadata-file',type=Path,help='Test/offline doğrulama için models.dev api.json uyumlu metadata dosyası')
     ap.add_argument('--reconfigure',action='store_true',help='Mevcut HHC ekibini güvenli biçimde yeniden yapılandır')
+    ap.add_argument('--update',action='store_true',help="Mevcut state'i koruyarak proje dosyalarını yeni kit ile sessizce senkronla (interaktif değil).")
     ap.add_argument('--force',action='store_true',help='Çakışan HHC hedef dosyalarının üzerine yaz')
     ap.add_argument('--dry-run',action='store_true')
     args=ap.parse_args()
+    if args.update and args.reconfigure: raise InstallError('--update ve --reconfigure birlikte kullanılamaz.')
+    reconfigure_like=args.reconfigure or args.update
     try:
         project=safe_project(args.project_path); preset=load_preset(args.preset); previous=load_state(project)
-        if args.reconfigure and not previous: raise InstallError('Yeniden yapılandırılacak HHC kurulumu bulunamadı. Önce /hhc-install kullanın.')
+        if reconfigure_like and not previous: raise InstallError('--update/--reconfigure mevcut HHC state\'i gerektirir. Önce /hhc-install.')
+        if args.update:
+            current=(KIT/'VERSION').read_text().strip()
+            if previous.get('kit_version')==current:
+                print(json.dumps({'status':'UP_TO_DATE','kit_version':current,'project':str(project)}))
+                return 0
         if args.shared_model and args.model: raise InstallError('--shared-model ile --model birlikte kullanılamaz.')
         explicit_models=parse_models(args.model); shared_model=valid_model_id(args.shared_model) if args.shared_model else None
-        if args.scout is None:
-            scout_enabled=bool(previous.get('scout_enabled',False)) if (args.reconfigure and previous) else False
+        if args.update:
+            scout_enabled=bool(previous.get('scout_enabled',False))
+            playwright_enabled=bool(previous.get('playwright_enabled',False))
+            scout_model=previous.get('scout_model')
         else:
-            scout_enabled=args.scout=='enabled'
-        if args.playwright is None:
-            playwright_enabled=(bool(previous.get('playwright_enabled',False)) if (args.reconfigure and previous and args.preset=='web-development') else False)
+            if args.scout is None:
+                scout_enabled=bool(previous.get('scout_enabled',False)) if (reconfigure_like and previous) else False
+            else:
+                scout_enabled=args.scout=='enabled'
+            if args.playwright is None:
+                playwright_enabled=(bool(previous.get('playwright_enabled',False)) if (reconfigure_like and previous and args.preset=='web-development') else False)
+            else:
+                playwright_enabled=args.playwright=='enabled'
+            if playwright_enabled and args.preset!='web-development':
+                raise InstallError('Playwright MCP yalnız web-development profilinde etkinleştirilebilir.')
+
+            if scout_enabled:
+                inherited_scout=(previous or {}).get('scout_model') if reconfigure_like else None
+                scout_model=valid_model_id(args.scout_model or inherited_scout or '') if (args.scout_model or inherited_scout) else None
+                if not scout_model:
+                    raise InstallError('Scout etkinse --scout-model sağlayıcı/model zorunludur; manager modeline sessiz devralma yapılmaz.')
+            else:
+                if args.scout_model:
+                    raise InstallError('--scout-model yalnız --scout enabled ile kullanılabilir.')
+                scout_model=None
+
+        if not args.update:
+            if args.preset=='custom':
+                specialists=parse_custom_specialists(args.roles)
+            else:
+                if args.roles: raise InstallError('--roles yalnız custom profil ile kullanılabilir.')
+                specialists=specialist_roles_from_preset(preset['roles'])
+
+            team_mode=args.team_mode
+            if args.team_mode=='single':
+                # Tek Ana Ajan = tek kullanıcı muhatabı. Profil uzmanları kurulmaya ve native Task ile çağrılmaya devam eder.
+                primary='working-manager'; manager_mode='hands_on'
+                roles=list(dict.fromkeys([primary,*specialists]))
+                if explicit_models:
+                    raise InstallError('Tek Ana Ajan modunda rol bazlı --model kullanma; tek model için --shared-model kullan.')
+                models={role:shared_model for role in roles} if shared_model else {}
+            else:
+                if args.preset=='custom' and not specialists:
+                    raise InstallError('Özel Çoklu Ajan ekibinde en az bir uzman rol seçilmelidir.')
+                manager_mode=args.manager_mode
+                primary='working-manager' if manager_mode=='hands_on' else 'manager'
+                roles=list(dict.fromkeys([primary,*specialists]))
+                if shared_model: models={role:shared_model for role in roles}
+                else: models=dict(explicit_models)
+                missing=set(models)-set(roles)
+                if missing: raise InstallError('Seçili ekipte olmayan role model verildi: '+', '.join(sorted(missing)))
+
+            model_warnings=validate_model_capabilities(models,scout_model,args.model_metadata_file) if args.validate_model_capabilities else []
+            model_policy='shared' if shared_model else ('per-role' if models else 'inherit')  # yalnız backward-compatible state; wizard bunu sormaz.
+            skills=list(preset['skills']); commands=list(preset['commands'])
         else:
-            playwright_enabled=args.playwright=='enabled'
-        if playwright_enabled and args.preset!='web-development':
-            raise InstallError('Playwright MCP yalnız web-development profilinde etkinleştirilebilir.')
-
-        if scout_enabled:
-            inherited_scout=(previous or {}).get('scout_model') if args.reconfigure else None
-            scout_model=valid_model_id(args.scout_model or inherited_scout or '') if (args.scout_model or inherited_scout) else None
-            if not scout_model:
-                raise InstallError('Scout etkinse --scout-model sağlayıcı/model zorunludur; manager modeline sessiz devralma yapılmaz.')
-        else:
-            if args.scout_model:
-                raise InstallError('--scout-model yalnız --scout enabled ile kullanılabilir.')
-            scout_model=None
-
-        if args.preset=='custom':
-            specialists=parse_custom_specialists(args.roles)
-        else:
-            if args.roles: raise InstallError('--roles yalnız custom profil ile kullanılabilir.')
-            specialists=specialist_roles_from_preset(preset['roles'])
-
-        if args.team_mode=='single':
-            # Tek Ana Ajan = tek kullanıcı muhatabı. Profil uzmanları kurulmaya ve native Task ile çağrılmaya devam eder.
-            primary='working-manager'; manager_mode='hands_on'
-            roles=list(dict.fromkeys([primary,*specialists]))
-            if explicit_models:
-                raise InstallError('Tek Ana Ajan modunda rol bazlı --model kullanma; tek model için --shared-model kullan.')
-            models={role:shared_model for role in roles} if shared_model else {}
-        else:
-            if args.preset=='custom' and not specialists:
-                raise InstallError('Özel Çoklu Ajan ekibinde en az bir uzman rol seçilmelidir.')
-            manager_mode=args.manager_mode
-            primary='working-manager' if manager_mode=='hands_on' else 'manager'
-            roles=list(dict.fromkeys([primary,*specialists]))
-            if shared_model: models={role:shared_model for role in roles}
-            else: models=dict(explicit_models)
-            missing=set(models)-set(roles)
-            if missing: raise InstallError('Seçili ekipte olmayan role model verildi: '+', '.join(sorted(missing)))
-
-        model_warnings=validate_model_capabilities(models,scout_model,args.model_metadata_file) if args.validate_model_capabilities else []
-
-        model_policy='shared' if shared_model else ('per-role' if models else 'inherit')  # yalnız backward-compatible state; wizard bunu sormaz.
-        skills=list(preset['skills']); commands=list(preset['commands'])
+            preset=load_preset(previous['preset'])
+            team_mode=previous['team_mode']; manager_mode=previous.get('manager_mode')
+            roles=list(previous.get('roles',[])); primary=previous.get('primary_agent')
+            specialists=[r for r in roles if r not in PRIMARY_ROLES]
+            models=dict(previous.get('models',{})); shared_model=previous.get('shared_model')
+            model_policy=previous.get('model_policy','inherit')
+            model_warnings=previous.get('model_warnings',[])
+            skills=list(preset['skills']); commands=list(preset['commands'])
         prev_managed=set(previous.get('managed_files',[])) if previous else set()
         written=[]; preserved=[]; removed=[]; managed=[]; op=project/'.opencode'
         desired=[]
@@ -246,14 +269,14 @@ def main()->int:
             desired.append((KIT/'VERSION',aux_cfg,aux_text))
 
         desired_rel={rel(project,dst) for _,dst,_ in desired}
-        if args.reconfigure:
+        if reconfigure_like:
             for old in sorted(prev_managed-desired_rel):
                 path=project/old
                 if path.is_file():
                     if not args.dry_run:path.unlink()
                     removed.append(str(path))
         for src,dst,text in desired:
-            r=rel(project,dst); overwrite=args.force or (args.reconfigure and r in prev_managed)
+            r=rel(project,dst); overwrite=args.force or (reconfigure_like and r in prev_managed)
             owned=write_file(src,dst,project,overwrite=overwrite,dry=args.dry_run,text=text,written=written,preserved=preserved)
             if owned or r in prev_managed:managed.append(r)
 
@@ -263,7 +286,7 @@ def main()->int:
             expected_cfg=generate_config(primary)
             if not previous and cfg.read_text(encoding='utf-8')==expected_cfg:
                 previous_cfg_created=True; previous_cfg_hash=sha_file(cfg)
-            can_update=args.force or (args.reconfigure and previous_cfg_created and previous_cfg_hash and sha_file(cfg)==previous_cfg_hash)
+            can_update=args.force or (reconfigure_like and previous_cfg_created and previous_cfg_hash and sha_file(cfg)==previous_cfg_hash)
             if can_update:
                 if not args.dry_run:cfg.write_text(generate_config(primary),encoding='utf-8',newline=''); written.append(str(cfg))
                 cfg_created=True; cfg_action='updated-hhc-config'
@@ -275,8 +298,8 @@ def main()->int:
         if cfg.exists() and cfg_created and not args.dry_run:cfg_hash=sha_file(cfg)
         elif previous_cfg_hash and cfg_created:cfg_hash=previous_cfg_hash
 
-        state={'schema_version':1,'kit_version':(KIT/'VERSION').read_text().strip(),'team_mode':args.team_mode,
-               'preset':args.preset,'manager_mode':manager_mode,'primary_agent':primary,'roles':roles,'skills':skills,'commands':commands,
+        state={'schema_version':1,'kit_version':(KIT/'VERSION').read_text().strip(),'team_mode':team_mode,
+               'preset':preset.get('name',args.preset),'manager_mode':manager_mode,'primary_agent':primary,'roles':roles,'skills':skills,'commands':commands,
                'model_policy':model_policy,'shared_model':shared_model,'models':models,'scout_enabled':scout_enabled,'scout_model':scout_model,'playwright_enabled':playwright_enabled,'model_warnings':model_warnings,'managed_files':sorted(managed),
                'config_created_by_hhc':cfg_created,'config_sha256':cfg_hash}
         if not args.dry_run:
@@ -284,7 +307,7 @@ def main()->int:
             state_path.write_text(json.dumps(state,ensure_ascii=False,indent=2)+'\n',encoding='utf-8',newline=''); remove_empty_dirs(op)
         config_result={'path':str(cfg),'action':cfg_action,'existed_before':cfg_existed_before,'managed_by_hhc':cfg_created,
                        'notice':('Mevcut opencode.jsonc korundu; HHC bu dosyadaki default_agent, subagent_depth veya compaction değerlerini değiştirmedi. Mevcut OpenCode yapılandırmanız geçerlidir.' if cfg_action=='preserved-existing-config' else None)}
-        print(json.dumps({'status':'DRY_RUN' if args.dry_run else ('RECONFIGURED' if args.reconfigure else 'COMPLETE'),'project':str(project),
+        print(json.dumps({'status':'DRY_RUN' if args.dry_run else ('UPDATED' if args.update else ('RECONFIGURED' if args.reconfigure else 'COMPLETE')),'project':str(project),
                           **{k:state[k] for k in ('team_mode','preset','manager_mode','primary_agent','roles','skills','commands','model_policy','shared_model','models','scout_enabled','scout_model','playwright_enabled','model_warnings')},
                           'config':config_result,'written':written,'removed':removed,'preserved_existing':list(dict.fromkeys(preserved))},ensure_ascii=False,indent=2))
         if preserved:print('NOT: HHC tarafından güvenle yönetilemeyen mevcut dosyalar korunmuştur.',file=sys.stderr)

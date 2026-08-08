@@ -1,6 +1,6 @@
 # HHC AI Team Kit
 
-**Sürüm: 1.1.0**
+**Sürüm: 1.1.1**
 
 HHC AI Team Kit, OpenCode projelerine küçük ve model/sağlayıcı bağımsız bir yapay zekâ yazılım ekibi kurar. OpenCode'un native primary/subagent, Task, skill, command ve permission mekanizmalarını kullanır; ikinci bir görev/kanıt framework'ü kurmaz.
 
@@ -66,6 +66,17 @@ komutuna geçilir. CLI sonucu da alınamazsa yerel OpenCode cache adayları yaln
 
 aynı karar ağacını kullanır. Eski rc.16 `single + solo-agent` state'i okunabilir; kullanıcı yeniden yapılandırdığında HHC-owned eski `solo-agent.md` güvenle kaldırılıp yeni `working-manager + profil uzmanları` düzenine geçirilebilir.
 
+## Güncelleme
+
+Yeni kit sürümü çıkınca:
+
+1. `HHC-KUR`'u yeniden çalıştırın (global kit `current/`'a güncellenir).
+2. Her projede `/hhc-update` çalıştırın (sessiz senkron, mevcut state korunur).
+
+`/hhc-update` ile `/hhc-reconfigure` farkı:
+- **update**: Sessiz, interaktif değil, mevcut state'i aynen korur.
+- **reconfigure**: İnteraktif, profil/rol/model değiştirmeye izin verir, state değişebilir.
+
 ## Hedef projeye ne kurulur?
 
 ```text
@@ -104,6 +115,7 @@ Global komutlar:
 /hhc-install
 /hhc-install-remote
 /hhc-reconfigure
+/hhc-update
 ```
 
 ## Mevcut OpenCode config ve platform notu

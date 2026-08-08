@@ -862,3 +862,133 @@ def test_model_advisor_never_invents_missing_cost(tmp_path):
 def test_remote_install_help_includes_model_metadata_file():
     r=run(KIT/'scripts/remote_install.py','--help')
     assert '--model-metadata-file' in r.stdout
+
+
+# ── /hhc-update tests ──
+
+def test_update_bumps_kit_version_and_preserves_config(tmp_path):
+    p=tmp_path/'app'
+    # Önce standard kurulum yap
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','standard')
+    assert r.returncode==0, r.stderr
+    # State'teki kit_version'ı eski yap
+    state_path=p/'.opencode/hhc-team.json'
+    state=json.loads(state_path.read_text(encoding='utf-8'))
+    original_config_action=json.loads(r.stdout)['config']['action']
+    state['kit_version']='1.0.0'
+    state_path.write_text(json.dumps(state,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    # --update çalıştır
+    r=run(KIT/'scripts/install.py','--project-path',p,'--update')
+    assert r.returncode==0, r.stderr
+    data=json.loads(r.stdout)
+    assert data['status']=='UPDATED'
+    new_state=json.loads(state_path.read_text(encoding='utf-8'))
+    assert new_state['kit_version']==(KIT/'VERSION').read_text().strip()
+    assert new_state['preset']=='standard'
+    assert set(new_state['roles'])==set(state['roles'])
+
+
+def test_update_up_to_date_short_circuits(tmp_path):
+    p=tmp_path/'app'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','standard')
+    assert r.returncode==0, r.stderr
+    # Aynı sürümle --update → UP_TO_DATE
+    before_state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
+    before_files={x.relative_to(p):x.read_bytes() for x in p.rglob('*') if x.is_file()}
+    r=run(KIT/'scripts/install.py','--project-path',p,'--update')
+    assert r.returncode==0, r.stderr
+    data=json.loads(r.stdout)
+    assert data['status']=='UP_TO_DATE'
+    after_state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
+    assert after_state==before_state
+    after_files={x.relative_to(p):x.read_bytes() for x in p.rglob('*') if x.is_file()}
+    assert after_files==before_files
+
+
+def test_update_requires_state(tmp_path):
+    p=tmp_path/'app'
+    p.mkdir()
+    # State yok → hata
+    r=run(KIT/'scripts/install.py','--project-path',p,'--update')
+    assert r.returncode!=0
+
+
+def test_update_rejects_with_reconfigure(tmp_path):
+    p=tmp_path/'app'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','minimal')
+    assert r.returncode==0, r.stderr
+    r=run(KIT/'scripts/install.py','--project-path',p,'--update','--reconfigure')
+    assert r.returncode!=0
+
+
+def test_update_custom_preset_preserves_specialists(tmp_path):
+    p=tmp_path/'app'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','custom','--roles','coder,qa-reviewer')
+    assert r.returncode==0, r.stderr
+    state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
+    state['kit_version']='1.0.0'
+    (p/'.opencode/hhc-team.json').write_text(json.dumps(state,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    r=run(KIT/'scripts/install.py','--project-path',p,'--update')
+    assert r.returncode==0, r.stderr
+    new_state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
+    assert set(new_state['roles'])=={'working-manager','coder','qa-reviewer'}
+    assert new_state['preset']=='custom'
+
+
+def test_update_removes_obsolete_hhc_files_keeps_user_files(tmp_path):
+    p=tmp_path/'app'
+    assert run(KIT/'scripts/install.py','--project-path',p,'--preset','standard').returncode==0
+    user=p/'.opencode/agents/my-private-agent.md'; user.write_text('kullanıcı dosyası',encoding='utf-8')
+    assert (p/'.opencode/agents/architect.md').exists()
+    # State'i minimal'e çevirip kit_version'ı eski yap; managed_files'i koru ki --update temizlesin
+    state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
+    state['kit_version']='1.0.0'; state['preset']='minimal'; state['roles']=['working-manager','coder','qa-reviewer']
+    state['skills']=['task-classification','safe-refactoring','code-review','test-strategy']
+    state['commands']=['team-status','team-review']
+    # managed_files'i değiştirme — önceki standard kurulumundaki tüm dosyalar kalsın,
+    # --update prev_managed'de olup desired'da olmayanları temizler.
+    (p/'.opencode/hhc-team.json').write_text(json.dumps(state,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    r=run(KIT/'scripts/install.py','--project-path',p,'--update')
+    assert r.returncode==0, r.stderr
+    assert not (p/'.opencode/agents/architect.md').exists()
+    assert user.read_text(encoding='utf-8')=='kullanıcı dosyası'
+    assert (p/'.opencode/agents/working-manager.md').exists()
+    assert (p/'.opencode/agents/coder.md').exists()
+
+
+def test_update_scout_playwright_state_preserved(tmp_path):
+    p=tmp_path/'app'
+    r=run(KIT/'scripts/install.py','--project-path',p,'--preset','web-development',
+          '--scout','enabled','--scout-model','provider/research',
+          '--playwright','enabled')
+    assert r.returncode==0, r.stderr
+    state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
+    assert state['scout_enabled'] is True and state['scout_model']=='provider/research'
+    assert state['playwright_enabled'] is True
+    state['kit_version']='1.0.0'
+    (p/'.opencode/hhc-team.json').write_text(json.dumps(state,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    r=run(KIT/'scripts/install.py','--project-path',p,'--update')
+    assert r.returncode==0, r.stderr
+    new_state=json.loads((p/'.opencode/hhc-team.json').read_text(encoding='utf-8'))
+    assert new_state['scout_enabled'] is True
+    assert new_state['scout_model']=='provider/research'
+    assert new_state['playwright_enabled'] is True
+    # .opencode/opencode.jsonc hala mevcut
+    assert (p/'.opencode/opencode.jsonc').exists()
+
+
+def test_global_bootstrap_contains_update(tmp_path, monkeypatch):
+    monkeypatch.setenv('XDG_CONFIG_HOME',str(tmp_path/'config'))
+    monkeypatch.setenv('XDG_DATA_HOME',str(tmp_path/'data'))
+    r=run(KIT/'scripts/install_global.py','--install')
+    assert r.returncode==0, r.stderr
+    root=tmp_path/'config/opencode/commands'
+    assert (root/'hhc-update.md').is_file()
+    text=(root/'hhc-update.md').read_text(encoding='utf-8')
+    assert '--update' in text
+    assert 'UP_TO_DATE' in text
+    assert 'UPDATED' in text
+    assert 'sessiz' in text
+    # Placeholder replace doğrulaması
+    assert '{{KIT_ROOT}}' not in text
+    assert '{{PYTHON}}' not in text
