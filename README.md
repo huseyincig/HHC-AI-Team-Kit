@@ -2,7 +2,7 @@
 
 [Türkçe](README.md) | [English](README.en.md)
 
-**Sürüm: 1.2.0**
+**Sürüm: 1.2.1**
 
 HHC AI Team Kit, OpenCode projelerine küçük, SMART ve model/sağlayıcı bağımsız bir yapay zekâ yazılım ekibi kurar. OpenCode'un yerleşik ana ajan, alt ajan, Task, skill, command ve permission mekanizmalarını kullanır; ikinci bir görev veya kanıt sistemi kurmaz.
 

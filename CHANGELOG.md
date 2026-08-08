@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.1
+
+- fix: `update_global` artık her non-fatal durumda `install_bootstrap` çağırıyor — UP_TO_DATE/OFFLINE/NO_RELEASES/RATE_LIMITED sonrası global OpenCode config current ile senkronize. Daha önce UP_TO_DATE'te atlanıyordu, eski komut dosyaları kalabiliyordu.
+
 ## 1.2.0
 
 - Ana çalışma profilleri `basic`, `standard`, `powerful` olarak sadeleştirildi; Standard varsayılan oldu.

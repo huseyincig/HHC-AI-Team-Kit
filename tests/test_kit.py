@@ -1290,6 +1290,163 @@ def test_normalize_version_handles_v_prefix_and_comparison():
     # Shorter tuple equals prefix of longer in Python tuple ordering
     assert ug._compare((1,), (1, 0, 0)) == '<'
 
+
+def _ug_setup_tracking(monkeypatch, tmp_path, version='1.1.1'):
+    """Like _ug_setup but returns bootstrap_calls list for call tracking."""
+    ug = _import_update_global()
+    current = tmp_path / 'current'
+    current.mkdir(parents=True, exist_ok=True)
+    (current / 'VERSION').write_text(version, encoding='utf-8')
+    monkeypatch.setattr(ug, 'runtime_root', lambda: current)
+    bootstrap_calls = []
+    monkeypatch.setattr(ug, 'install_bootstrap', lambda dst: bootstrap_calls.append(dst))
+    return ug, current, bootstrap_calls
+
+
+def test_update_global_always_calls_install_bootstrap_on_non_fatal(tmp_path, monkeypatch, capsys):
+    """install_bootstrap called on UP_TO_DATE, OFFLINE, NO_RELEASES, RATE_LIMITED, LOCAL_ONLY."""
+    ug, current, calls = _ug_setup_tracking(monkeypatch, tmp_path, '1.1.1')
+
+    # UP_TO_DATE (==)
+    monkeypatch.setattr(ug, '_fetch_json',
+                        lambda url, token=None, timeout=30: (_fake_release_api('v1.1.1'), None))
+    monkeypatch.setattr(sys, 'argv', ['update_global.py'])
+    exit_code = ug.main()
+    out, _ = capsys.readouterr()
+    assert exit_code == 0
+    assert json.loads(out)['status'] == 'UP_TO_DATE'
+    assert len(calls) == 1 and calls[0] == current, 'install_bootstrap not called on UP_TO_DATE'
+
+    # OFFLINE
+    calls.clear()
+    monkeypatch.setattr(ug, '_fetch_json',
+                        lambda url, token=None, timeout=30: (None, 'URLError: connection refused'))
+    exit_code = ug.main()
+    out, _ = capsys.readouterr()
+    assert exit_code == 0
+    assert json.loads(out)['status'] == 'OFFLINE'
+    assert len(calls) == 1, 'install_bootstrap not called on OFFLINE'
+
+    # RATE_LIMITED
+    calls.clear()
+    monkeypatch.setattr(ug, '_fetch_json',
+                        lambda url, token=None, timeout=30: (None, 'HTTP 403: Forbidden (rate limited)'))
+    exit_code = ug.main()
+    out, _ = capsys.readouterr()
+    assert exit_code == 0
+    assert json.loads(out)['status'] == 'RATE_LIMITED'
+    assert len(calls) == 1, 'install_bootstrap not called on RATE_LIMITED'
+
+    # NO_RELEASES (404)
+    calls.clear()
+    monkeypatch.setattr(ug, '_fetch_json',
+                        lambda url, token=None, timeout=30: (None, 'HTTP 404: Not Found'))
+    exit_code = ug.main()
+    out, _ = capsys.readouterr()
+    assert exit_code == 0
+    assert json.loads(out)['status'] == 'NO_RELEASES'
+    assert len(calls) == 1, 'install_bootstrap not called on NO_RELEASES'
+
+    # LOCAL_ONLY (--no-remote)
+    calls.clear()
+    monkeypatch.setattr(sys, 'argv', ['update_global.py', '--no-remote'])
+    exit_code = ug.main()
+    out, _ = capsys.readouterr()
+    assert exit_code == 0
+    assert json.loads(out)['status'] == 'LOCAL_ONLY'
+    assert len(calls) == 1, 'install_bootstrap not called on LOCAL_ONLY'
+
+
+def test_update_global_install_bootstrap_not_called_on_error(tmp_path, monkeypatch, capsys):
+    """install_bootstrap NOT called on genuine ERROR (checksum mismatch)."""
+    ug, current, calls = _ug_setup_tracking(monkeypatch, tmp_path, '1.1.1')
+
+    release_dir = tmp_path / 'release'
+    release_dir.mkdir()
+    manifest, zip_path = _make_fake_release(release_dir, '1.1.2')
+
+    def fake_fetch(url, token=None, timeout=30):
+        if 'releases/latest' in (url or ''):
+            return _fake_release_api('v1.1.2'), None
+        else:
+            return manifest, None
+
+    def fake_download(url, dest, timeout=30):
+        shutil.copy2(zip_path, dest)
+        return 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef', None
+
+    monkeypatch.setattr(ug, '_fetch_json', fake_fetch)
+    monkeypatch.setattr(ug, '_download', fake_download)
+    monkeypatch.setattr(sys, 'argv', ['update_global.py'])
+
+    exit_code = ug.main()
+    out, _ = capsys.readouterr()
+    assert exit_code == 0
+    assert json.loads(out)['status'] == 'ERROR'
+    assert len(calls) == 0, 'install_bootstrap should NOT be called on checksum ERROR'
+
+
+def test_update_global_up_to_date_syncs_bootstrap_to_global_config(tmp_path, monkeypatch, capsys):
+    """UP_TO_DATE → install_bootstrap actually writes bootstrap files to opencode_root."""
+    ug = _import_update_global()
+    current = tmp_path / 'current'
+    current.mkdir(parents=True, exist_ok=True)
+    (current / 'VERSION').write_text('1.1.1', encoding='utf-8')
+
+    # Create bootstrap files under current (simulating install_global.py --install)
+    bootstrap_commands = current / 'bootstrap' / 'commands'
+    bootstrap_skill = current / 'bootstrap' / 'skills' / 'hhc-project-bootstrap'
+    bootstrap_commands.mkdir(parents=True)
+    bootstrap_skill.mkdir(parents=True)
+
+    cmd_files = ['hhc-install.md', 'hhc-install-remote.md', 'hhc-reconfigure.md', 'hhc-update.md']
+    for cmd in cmd_files:
+        (bootstrap_commands / cmd).write_text(
+            f'# {cmd}\n\nTest content with {{{{KIT_ROOT}}}} and {{{{PYTHON}}}} placeholders.\n',
+            encoding='utf-8')
+    (bootstrap_skill / 'SKILL.md').write_text(
+        '# HHC Project Bootstrap\n\nSkill test {{{{KIT_ROOT}}}}.\n',
+        encoding='utf-8')
+
+    # Setup: mock runtime_root and opencode_root
+    monkeypatch.setattr(ug, 'runtime_root', lambda: current)
+
+    # Mock opencode_root to a temp directory so real install_bootstrap writes there
+    oc_root = tmp_path / 'opencode_config'
+    import install_global as ig_mod
+    monkeypatch.setattr(ig_mod, 'opencode_root', lambda: oc_root)
+
+    # NOTE: install_bootstrap is NOT mocked here (unlike _ug_setup).
+    # The real function will run and write bootstrap files to oc_root.
+
+    # UP_TO_DATE simulation
+    monkeypatch.setattr(ug, '_fetch_json',
+                        lambda url, token=None, timeout=30: (_fake_release_api('v1.1.1'), None))
+    monkeypatch.setattr(sys, 'argv', ['update_global.py'])
+
+    exit_code = ug.main()
+    out, _ = capsys.readouterr()
+    assert exit_code == 0
+    assert json.loads(out)['status'] == 'UP_TO_DATE'
+
+    # Verify bootstrap files were written to opencode_root with placeholders replaced
+    for cmd in cmd_files:
+        target = oc_root / 'commands' / cmd
+        assert target.is_file(), f'{cmd} not found in opencode_root'
+        content = target.read_text(encoding='utf-8')
+        assert 'Test content with' in content
+        assert '{{KIT_ROOT}}' not in content, f'Placeholder KIT_ROOT not replaced in {cmd}'
+        assert '{{PYTHON}}' not in content, f'Placeholder PYTHON not replaced in {cmd}'
+        assert str(current) in content, f'KIT_ROOT path not substituted in {cmd}'
+
+    # Verify skill directory
+    skill_target = oc_root / 'skills' / 'hhc-project-bootstrap' / 'SKILL.md'
+    assert skill_target.is_file(), 'hhc-project-bootstrap SKILL.md not found'
+    skill_content = skill_target.read_text(encoding='utf-8')
+    assert 'Skill test' in skill_content
+    assert '{{KIT_ROOT}}' not in skill_content, 'Placeholder not replaced in skill'
+
+
 # 1.2.0 SMART profile-policy architecture
 
 def _state(project: Path):

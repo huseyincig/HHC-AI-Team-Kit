@@ -2,7 +2,7 @@
 
 [Türkçe](README.md) | [English](README.en.md)
 
-**Version: 1.2.0**
+**Version: 1.2.1**
 
 HHC AI Team Kit installs a small, SMART, model- and provider-independent AI software team into OpenCode projects. It uses OpenCode's native primary/subagent, Task, skill, command, and permission mechanisms instead of building a second orchestration framework.
 

@@ -175,6 +175,7 @@ def main() -> int:
         result = {'status': 'LOCAL_ONLY', 'current_version': current_ver,
                   'notice': '--no-remote: ağ kontrolü atlandı.'}
         print(json.dumps(result, ensure_ascii=False))
+        install_bootstrap(current_path)
         return 0
 
     # ── Uzak sürüm kontrolü ──
@@ -195,12 +196,14 @@ def main() -> int:
         result = {'status': status, 'current_version': current_ver,
                   'notice': f'Ağ/API hatası ({err}). Yerel senkron devam.'}
         print(json.dumps(result, ensure_ascii=False))
+        install_bootstrap(current_path)
         return 0
 
     if not isinstance(release, dict):
         result = {'status': 'NO_RELEASES', 'current_version': current_ver,
                   'notice': 'Geçersiz GitHub API yanıtı.'}
         print(json.dumps(result, ensure_ascii=False))
+        install_bootstrap(current_path)
         return 0
 
     tag_name = release.get('tag_name', '')
@@ -208,6 +211,7 @@ def main() -> int:
         result = {'status': 'NO_RELEASES', 'current_version': current_ver,
                   'notice': 'Release tag_name bulunamadı.'}
         print(json.dumps(result, ensure_ascii=False))
+        install_bootstrap(current_path)
         return 0
 
     latest_tuple = _normalize_version(tag_name)
@@ -217,6 +221,7 @@ def main() -> int:
                   'latest_version': tag_name,
                   'notice': 'Sürüm çözümlenemedi, güvenli taraf UP_TO_DATE.'}
         print(json.dumps(result, ensure_ascii=False))
+        install_bootstrap(current_path)
         return 0
 
     cmp = _compare(latest_tuple, current_tuple)
@@ -224,12 +229,14 @@ def main() -> int:
         result = {'status': 'UP_TO_DATE', 'current_version': current_ver,
                   'latest_version': tag_name}
         print(json.dumps(result, ensure_ascii=False))
+        install_bootstrap(current_path)
         return 0
     if cmp == '<':
         result = {'status': 'UP_TO_DATE', 'current_version': current_ver,
                   'latest_version': tag_name,
                   'notice': 'Uzak sürüm yerelden eski; downgrade yapılmaz.'}
         print(json.dumps(result, ensure_ascii=False))
+        install_bootstrap(current_path)
         return 0
 
     # cmp == '>' → güncelleme gerekli
